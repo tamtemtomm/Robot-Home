@@ -7,7 +7,7 @@ Code for controlling dynamixel arm using orbbec camera data. This repo is used f
    <br>
   ```
 
-   $ git clone https://github.com/tamtemtomm/Wangsaff-SIBI.git
+   $ git clone[ https://github.com/tamtemtomm/Wangsaff-SIBI.git](https://github.com/tamtemtomm/Robot-Home)
 
   ```
   </br>
