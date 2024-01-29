@@ -1,0 +1,5 @@
+opencv-python==4.9.0.80
+primesense==2.2.0.30
+python-osc==1.8.3
+imutils==0.5.4
+ultralytics==8.1.2
