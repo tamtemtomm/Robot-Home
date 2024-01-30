@@ -300,3 +300,8 @@ class CameraData :
                 json.dump(img_depth.reshape(480, 640).tolist(), f)
         
         self.i += 1
+
+if __name__ == '__main__':
+    cam = DepthCamera(cam=1)
+    cam.config()
+    cam.run()

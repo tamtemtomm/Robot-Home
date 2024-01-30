@@ -16,5 +16,5 @@ if __name__ == '__main__':
     # 7. fps             : 30  (DEFAULT)
     # 8. save_data       : True           | False(Default)
 
-
-    cam.run(depth=False, yolo=True)
+    cam.config(depth=False, yolo=True)
+    cam.run()
