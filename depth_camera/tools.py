@@ -6,6 +6,7 @@ from primesense import _openni2 as c_api
 import os, shutil, time, json
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator
+import threading
 
 from config import *
 
@@ -13,12 +14,17 @@ class DepthCamera :
     def __init__(self, 
                  cam = 1,
                  redist = REDIST_PATH,
-                 data_dir = DATA_DIR):
+                 data_dir = DATA_DIR,
+                 thread_progress=True):
         self.cam = cam
         self.redist = redist
         self.data_dir = data_dir
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = None
+        
+        self.thread_progress = thread_progress
+        if self.thread_progress:
+            self.thread = threading.Thread(target=self.get_frame, daemon=True, args=(False,))
     
     def config(self, 
                 depth=True,
@@ -72,7 +78,8 @@ class DepthCamera :
                                        width=width, 
                                        height=height, 
                                        fps=fps,
-                                       temporal_filter=temporal_filter)
+                                   temporal_filter=temporal_filter)
+        else : self.depth_image = None
         
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
@@ -80,21 +87,15 @@ class DepthCamera :
             self.color_stream = ColorStream(cam=self.cam, 
                                        model=self.model,
                                        temporal_filter=temporal_filter)
+        else : self.color_image = None
         
     def run(self):
         
-        while True :
+        if self.thread_progress:
+            self.thread.start()
+        else : 
+            self.loop()
             
-            depth_image, img_depth, color_image = self.get_frame(show=True)
-            
-            ##----------------------------------------------------------------------------------------------------
-            # SAVING DATA
-            if self.save_data:
-                self.camera_data.save(color_image, depth_image, img_depth)
-                
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        
         self.close()
         
     ##-----------------------------------------------------------------------------------------------
@@ -106,28 +107,42 @@ class DepthCamera :
         if self.color:
             self.color_stream.close()
     
+    def loop(self, show=True):
+         while True :
+            
+            self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show)
+            
+            ##----------------------------------------------------------------------------------------------------
+            # SAVING DATA
+            if self.save_data:
+                self.camera_data.save(self.color_image, self.depth_image, self.img_depth)
+                
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        
+    
     def get_frame(self, show=False):
         ##----------------------------------------------------------------------------------------------------
         # GET DEPTH FRAME 
         if self.depth:
-            depth_image, img_depth = self.depth_stream.get_frame()
+            self.depth_image, self.img_depth = self.depth_stream.get_frame()
             if show: 
-                cv2.imshow('Depth Image', depth_image)
+                cv2.imshow('Depth Image', self.depth_image)
         
         else :
-            depth_image = None
-            img_depth = None
+            self.depth_image = None
+            self.img_depth = None
             
         ##----------------------------------------------------------------------------------------------------
         # GET COLOR FRAME 
         if self.color:       
-            color_image = self.color_stream.get_frame(img_depth=img_depth)
+            self.color_image = self.color_stream.get_frame(img_depth=self.img_depth)
             if show: 
-                cv2.imshow("Color Image", color_image)
+                cv2.imshow("Color Image", self.color_image)
         
-        else : color_image = None
+        else : self.color_image = None
         
-        return depth_image, img_depth, color_image
+        return self.depth_image, self.img_depth, self.color_image
     
     def _yoloModel(self):
         model = YOLO(YOLO_SEG_MODEL_PATH)

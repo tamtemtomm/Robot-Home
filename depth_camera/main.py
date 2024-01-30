@@ -1,5 +1,6 @@
 from tools import DepthCamera
 from config import *
+from display import App
 
 if __name__ == '__main__':
 
@@ -17,4 +18,6 @@ if __name__ == '__main__':
     # 8. save_data       : True           | False(Default)
 
     cam.config(depth=False, yolo=True)
-    cam.run()
+    
+    app = App(cam)
+    app.run()

@@ -6,7 +6,7 @@ from config import *
 from tools import DepthCamera
 
 class Frame(ctk.CTkFrame):
-    def __init__(self, container, text, mode='image', side='left'):
+    def __init__(self, container, text, side='left'):
         ctk.CTkFrame.__init__(self, container)
         self.setup(text=text, side=side)
         
@@ -17,7 +17,7 @@ class Frame(ctk.CTkFrame):
         }
     
     def setup(self, text, side):
-        self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 30))
+        self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
         self.out.pack(fill='both', expand=True, padx=5, pady=5)
         self.out.configure(anchor='center')
         self.img_label = ctk.CTkLabel(self, text="")
@@ -27,15 +27,36 @@ class Frame(ctk.CTkFrame):
         self.img_label.configure(image=img)
         self.img = img
 
+class Button(ctk.CTkButton):
+    def __init__(self, container,  command, text='Button'):
+        ctk.CTkButton.__init__(self, container, text=text, command=command)
+        self._config()
+        
+    def _config(self, text):
+        self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
+
+class CheckBox(ctk.CTkCheckBox):
+    def __init__(self, container, command, text='CheckBox'):
+        ctk.CTkCheckBox.__init__(self, container, text=text, command=command)
+        self._config()
+    
+    def _config(self):
+        pass
+        
+
 class App():
-    def __init__(self, title='Orbecc Camera GUI', size=None, icon=ICON_PATH):
-        self.run = False
+    def __init__(self, 
+                 camera,
+                 title='Orbecc Camera GUI', 
+                 size=None, 
+                 icon=ICON_PATH):
+        self.isrun = False
         
         self.window = ctk.CTk()
         self.window.iconbitmap(icon)
         self.window.title(title)
         
-        self.camera = DepthCamera(cam=0)
+        self.camera = camera
         self.camera.config(depth=False)
         
         self.config_size = {
@@ -51,6 +72,20 @@ class App():
         else :
             self.window.geometry(f"{self.config_size['init_size'][0]}x{self.config_size['init_size'][1]}")
         
+        if self.camera.thread_progress:
+            self.camera.thread.start()
+        
+        self.__setup()
+        
+    def __setup(self):
+        if self.camera.color:
+            self.__add_color_frame()
+            
+        if self.camera.depth : 
+            self.__add_depth_frame()
+        
+        self.__add_temporal_filter_cb()
+        
     def __add_color_frame(self):
         self.color_frame_display = Frame(self.window, 'Color Frame')
         self.color_frame_display.place(relx=0, rely=0.4, x=0, anchor='w')
@@ -59,35 +94,20 @@ class App():
         self.depth_frame_display = Frame(self.window, 'Depth Frame')
         self.depth_frame_display.place(relx=1, rely=1, x=-10, anchor='e')
     
-    def loop(self):
-        depth_img, _, color_img = self.camera.get_frame()
+    def __add_temporal_filter_cb(self):
+        temporal_filter_cb = CheckBox(self.window, command=self.__temporal_button_filter_cb, text='Temporal FIlter')
+        temporal_filter_cb.place(x=200, y=300)
         
-        if self.camera.color:
-            self.__add_color_frame()
-            color_img =  self._convert_to_pil(color_img)
-            self.color_frame_display.img_update(color_img)
-            
-        if self.camera.depth : 
-            self.__add_depth_frame()
-            depth_img= self._convert_to_pil(depth_img, depth=True)
-            self.depth_frame_display.img_update(depth_img)
-        
-        if self.run:
-            self.window.after(1, self.loop)
+    def __temporal_button_filter_cb(self):
+        pass
     
-    def start(self):
-        self.run = True
-        if self.camera.color:
-            self.__add_color_frame()
-            
-        if self.camera.depth : 
-            self.__add_depth_frame()
-            
+    def run(self):
+        self.isrun = True
         self.loop()
-        self.window.mainloop()
+        self.close()
     
     def loop(self):
-        depth_img, _, color_img = self.camera.get_frame()
+        depth_img, _, color_img = self.camera.get_frame(show=False)
         if self.camera.color:
             color_img =  self._convert_to_pil(color_img)
             self.color_frame_display.img_update(color_img)
@@ -96,11 +116,13 @@ class App():
             depth_img =  self._convert_to_pil(depth_img)
             self.depth_frame_display.img_update(depth_img)
         
-        if self.run:
-            self.window.after(1, self.loop)
+        if self.isrun:
+            self.window.after(14, self.loop)
+            
+        self.window.mainloop()
 
     def close(self):
-        self.run = False
+        self.isrun = False
         self.camera.close()
         self.window.destroy()
     
@@ -117,5 +139,6 @@ class App():
         return img
 
 if __name__ == '__main__':
-    app = App()
-    app.start()
+    camera = DepthCamera(cam=0, thread_progress=True)
+    app = App(camera)
+    app.run()
