@@ -12,27 +12,27 @@ from config import *
 class DepthCamera :
     def __init__(self, 
                  cam = 1,
-                 redist = REDIST_PATH
+                 redist = REDIST_PATH,
                  data_dir = DATA_DIR):
         self.cam = cam
         self.redist = redist
         self.data_dir = data_dir
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = None
-        
-    def run(self,
-            depth=True,
-            color=True,
-            yolo=True,
-            temporal_filter=False,
-            width=640,
-            height=480,
-            fps=30,
-            save_data = False,
-            ):
-        
-        ##---------------------------------------------------------------------------------------------------------
-        # PARAMETER CHECKING
+    
+    def config(self, 
+                depth=True,
+                color=True,
+                yolo=True,
+                temporal_filter=False,
+                width=640,
+                height=480,
+                fps=30,
+                save_data = False):
+        self.width = width
+        self.height = height
+        self.color = color
+        self.depth = depth
         
         if self._check_params(depth,
             color,
@@ -44,6 +44,12 @@ class DepthCamera :
             save_data) :
             return 
         
+        self.color = color
+        self.depth = depth
+        self.depth_data = depth
+        self.temporal_filter = temporal_filter
+        self.save_data = save_data
+        
         ##---------------------------------------------------------------------------------------------------------
         # YOLO MODEL INITIALISATION
         
@@ -54,7 +60,7 @@ class DepthCamera :
         # SAVE DATA INITIALITATION
         
         if save_data:
-            camera_data = CameraData(self.data_dir, 
+            self.camera_data = CameraData(self.data_dir, 
                                      color=color, 
                                      depth=depth, 
                                      depth_data=depth)
@@ -62,62 +68,72 @@ class DepthCamera :
         ##---------------------------------------------------------------------------------------------------------
         # DEPTH STREAM INITIALITATION
         if depth:
-            depth_stream = DepthStream(redist=self.redist, 
+            self.depth_stream = DepthStream(redist=self.redist, 
                                        width=width, 
                                        height=height, 
                                        fps=fps,
                                        temporal_filter=temporal_filter)
-        else :
-            img_depth = None
-            depth_image = None
         
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
         if color:
-            color_stream = ColorStream(cam=self.cam, 
+            self.color_stream = ColorStream(cam=self.cam, 
                                        model=self.model,
                                        temporal_filter=temporal_filter)
-        else : 
-            color_image = None
+        
+    def run(self):
         
         while True :
             
-            ##----------------------------------------------------------------------------------------------------
-            # GET DEPTH FRAME 
-            if depth:
-                depth_image, img_depth = depth_stream.get_frame()
-                
-                if temporal_filter:
-                    depth_image = self._temporal_filter(depth_image, prev_depth_image)
-                    prev_depth_image = depth_image
-                
-                cv2.imshow('Depth Image', depth_image)
-                
-            ##----------------------------------------------------------------------------------------------------
-            # GET COLOR FRAME 
-            if color:       
-                color_image = color_stream.get_frame(img_depth=img_depth)
-                cv2.imshow("Color Image", color_image,)
-                            
+            depth_image, img_depth, color_image = self.get_frame(show=True)
+            
             ##----------------------------------------------------------------------------------------------------
             # SAVING DATA
-            if save_data:
-                camera_data.save(color_image, depth_image, img_depth)
+            if self.save_data:
+                self.camera_data.save(color_image, depth_image, img_depth)
                 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
-        depth_stream.close()
-        color_stream.close()
+        self.close()
         
     ##-----------------------------------------------------------------------------------------------
     ## Add Extra Functions
+    
+    def close(self):
+        if self.depth:
+            self.depth_stream.close()
+        if self.color:
+            self.color_stream.close()
+    
+    def get_frame(self, show=False):
+        ##----------------------------------------------------------------------------------------------------
+        # GET DEPTH FRAME 
+        if self.depth:
+            depth_image, img_depth = self.depth_stream.get_frame()
+            if show: 
+                cv2.imshow('Depth Image', depth_image)
+        
+        else :
+            depth_image = None
+            img_depth = None
+            
+        ##----------------------------------------------------------------------------------------------------
+        # GET COLOR FRAME 
+        if self.color:       
+            color_image = self.color_stream.get_frame(img_depth=img_depth)
+            if show: 
+                cv2.imshow("Color Image", color_image)
+        
+        else : color_image = None
+        
+        return depth_image, img_depth, color_image
     
     def _yoloModel(self):
         model = YOLO(YOLO_SEG_MODEL_PATH)
         return model.to(self.device)
     
-    def _check_params( 
+    def _check_params( self,
             depth,
             color,
             yolo,
@@ -136,7 +152,7 @@ class DepthCamera :
                 print(f'(width, height, fps) parameter only accept int datatype')
                 return True
         
-        return True
+        return False
 
 
 class DepthStream :
