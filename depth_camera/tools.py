@@ -12,12 +12,11 @@ from config import *
 class DepthCamera :
     def __init__(self, 
                  cam = 1,
-                 redist = REDIST_PATH,
+                 redist = REDIST_PATH
                  data_dir = DATA_DIR):
         self.cam = cam
         self.redist = redist
         self.data_dir = data_dir
-        self.previous_frame = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = None
         
@@ -35,14 +34,16 @@ class DepthCamera :
         ##---------------------------------------------------------------------------------------------------------
         # PARAMETER CHECKING
         
-        for args in [depth, color, save_data]:
-            if isinstance(args, bool) == False:
-                print(f'(depth, color, depth_data, blobs, save_data) parameter only accept boolean datatype')
-                return         
-        for args in [width, height, fps]:
-            if isinstance(args, int) == False:
-                print(f'(width, height, fps) parameter only accept int datatype')
-                return
+        if self._check_params(depth,
+            color,
+            yolo,
+            temporal_filter,
+            width,
+            height,
+            fps,
+            save_data) :
+            return 
+        
         ##---------------------------------------------------------------------------------------------------------
         # YOLO MODEL INITIALISATION
         
@@ -53,12 +54,19 @@ class DepthCamera :
         # SAVE DATA INITIALITATION
         
         if save_data:
-            camera_data = CameraData(self.data_dir, color=color, depth=depth, depth_data=depth)
+            camera_data = CameraData(self.data_dir, 
+                                     color=color, 
+                                     depth=depth, 
+                                     depth_data=depth)
         
         ##---------------------------------------------------------------------------------------------------------
         # DEPTH STREAM INITIALITATION
         if depth:
-            depth_stream = DepthStream(redist=self.redist, width=width, height=height, fps=fps)
+            depth_stream = DepthStream(redist=self.redist, 
+                                       width=width, 
+                                       height=height, 
+                                       fps=fps,
+                                       temporal_filter=temporal_filter)
         else :
             img_depth = None
             depth_image = None
@@ -66,15 +74,11 @@ class DepthCamera :
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
         if color:
-            color_stream = ColorStream(cam=self.cam, model=self.model)
+            color_stream = ColorStream(cam=self.cam, 
+                                       model=self.model,
+                                       temporal_filter=temporal_filter)
         else : 
             color_image = None
-            
-        if temporal_filter:
-            prev_color_image=None
-            prev_depth_image=None
-        
-        i = 0
         
         while True :
             
@@ -102,8 +106,6 @@ class DepthCamera :
                 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-    
-            i+=1
         
         depth_stream.close()
         color_stream.close()
@@ -115,12 +117,26 @@ class DepthCamera :
         model = YOLO(YOLO_SEG_MODEL_PATH)
         return model.to(self.device)
     
-    def _temporal_filter(self, frame, prev_frame=None, alpha=0.5):
-        if prev_frame is None : 
-            return frame
-        else : 
-            result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
-            return result
+    def _check_params( 
+            depth,
+            color,
+            yolo,
+            temporal_filter,
+            width,
+            height,
+            fps,
+            save_data):
+        
+        for args in [depth, color, yolo, temporal_filter, save_data]:
+            if isinstance(args, bool) == False:
+                print(f'(depth, color, yolo, temporal_filter, save_data) parameter only accept boolean datatype')
+                return True
+        for args in [width, height, fps]:
+            if isinstance(args, int) == False:
+                print(f'(width, height, fps) parameter only accept int datatype')
+                return True
+        
+        return True
 
 
 class DepthStream :
