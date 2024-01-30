@@ -20,7 +20,6 @@ class DepthCamera :
         self.redist = redist
         self.data_dir = data_dir
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.model = None
         
         self.thread_progress = thread_progress
         if self.thread_progress:
@@ -31,6 +30,7 @@ class DepthCamera :
                 color=True,
                 yolo=True,
                 temporal_filter=False,
+                colormap=False,
                 width=640,
                 height=480,
                 fps=30,
@@ -44,23 +44,17 @@ class DepthCamera :
             color,
             yolo,
             temporal_filter,
+            colormap,
             width,
             height,
             fps,
             save_data) :
             return 
         
-        self.color = color
-        self.depth = depth
-        self.depth_data = depth
-        self.temporal_filter = temporal_filter
-        self.save_data = save_data
-        
         ##---------------------------------------------------------------------------------------------------------
         # YOLO MODEL INITIALISATION
         
-        if yolo:
-            self.model = self._yoloModel()
+        self.model = self._yoloModel()
         
         ##---------------------------------------------------------------------------------------------------------
         # SAVE DATA INITIALITATION
@@ -77,16 +71,13 @@ class DepthCamera :
             self.depth_stream = DepthStream(redist=self.redist, 
                                        width=width, 
                                        height=height, 
-                                       fps=fps,
-                                   temporal_filter=temporal_filter)
+                                       fps=fps)
         else : self.depth_image = None
         
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
         if color:
-            self.color_stream = ColorStream(cam=self.cam, 
-                                       model=self.model,
-                                       temporal_filter=temporal_filter)
+            self.color_stream = ColorStream(cam=self.cam)
         else : self.color_image = None
         
     def run(self):
@@ -125,7 +116,8 @@ class DepthCamera :
         ##----------------------------------------------------------------------------------------------------
         # GET DEPTH FRAME 
         if self.depth:
-            self.depth_image, self.img_depth = self.depth_stream.get_frame()
+            self.depth_image, self.img_depth = self.depth_stream.get_frame(colormapr=self.colormap,
+                                                                           temporal_filter=self.temporal_filter)
             if show: 
                 cv2.imshow('Depth Image', self.depth_image)
         
@@ -136,7 +128,9 @@ class DepthCamera :
         ##----------------------------------------------------------------------------------------------------
         # GET COLOR FRAME 
         if self.color:       
-            self.color_image = self.color_stream.get_frame(img_depth=self.img_depth)
+            self.color_image = self.color_stream.get_frame(img_depth=self.img_depth, 
+                                                           model=self.model if self.yolo else None,
+                                                           temporal_filter=self.temporal_filter)
             if show: 
                 cv2.imshow("Color Image", self.color_image)
         
@@ -153,36 +147,44 @@ class DepthCamera :
             color,
             yolo,
             temporal_filter,
+            colormap,
             width,
             height,
             fps,
             save_data):
         
-        for args in [depth, color, yolo, temporal_filter, save_data]:
+        for args in [depth, color, yolo, colormap, temporal_filter, save_data]:
             if isinstance(args, bool) == False:
-                print(f'(depth, color, yolo, temporal_filter, save_data) parameter only accept boolean datatype')
+                print(f'(depth, color, yolo, colormap, temporal_filter, save_data) parameter only accept boolean datatype')
                 return True
         for args in [width, height, fps]:
             if isinstance(args, int) == False:
                 print(f'(width, height, fps) parameter only accept int datatype')
                 return True
-        
+            
+        self.yolo = yolo
+        self.color = color
+        self.depth = depth
+        self.depth_data = depth
+        self.temporal_filter = temporal_filter
+        self.colormap = colormap
+        self.save_data = save_data
         return False
 
 
 class DepthStream :
-    def __init__(self, redist, width, height, fps, temporal_filter=False):
+    def __init__(self, redist, width, height, fps):
         openni2.initialize(redist)
         dev = openni2.Device.open_any()
         self.depth_stream = dev.create_depth_stream()
         self.depth_stream.start()
         self.depth_stream.set_video_mode(c_api.OniVideoMode(pixelFormat = c_api.OniPixelFormat.ONI_PIXEL_FORMAT_DEPTH_1_MM, resolutionX = width, resolutionY = height, fps = fps))
-        
+    
+    def get_frame(self, colormap=False, temporal_filter=False):
         self.temporal_filter = temporal_filter
         if self.temporal_filter:
             self.prev_depth_image = None
-    
-    def get_frame(self, colormap=False):
+        
         depth_frame = self.depth_stream.read_frame()
         depth_frame_data = depth_frame.get_buffer_as_uint16()
         img_depth = np.frombuffer(depth_frame_data, dtype=np.uint16).astype(np.float32)
@@ -208,18 +210,18 @@ class DepthStream :
         openni2.unload()
 
 class ColorStream:
-    def __init__(self, cam, model=None, temporal_filter=False):
+    def __init__(self, cam):
         self.cap = cv2.VideoCapture(cam)
-        self.model = model
-        
+            
+    def get_frame(self, img_depth=None, model=None, temporal_filter=False):
         self.temporal_filter = temporal_filter
         if self.temporal_filter:
             self.prev_color_image = None
-            
-    def get_frame(self, img_depth=None):
+        
         _, color_image = self.cap.read()
         
-        if self.model is not None:
+        if model is not None:
+            self.model = model
             color_image = self._yolo(color_image, img_depth)
         
         if self.temporal_filter :
@@ -317,6 +319,6 @@ class CameraData :
         self.i += 1
 
 if __name__ == '__main__':
-    cam = DepthCamera(cam=1)
-    cam.config()
+    cam = DepthCamera(cam=0)
+    cam.config(depth=False, yolo=False)
     cam.run()

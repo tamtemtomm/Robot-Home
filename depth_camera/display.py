@@ -28,16 +28,16 @@ class Frame(ctk.CTkFrame):
         self.img = img
 
 class Button(ctk.CTkButton):
-    def __init__(self, container,  command, text='Button'):
-        ctk.CTkButton.__init__(self, container, text=text, command=command)
+    def __init__(self, container,  **kwargs):
+        ctk.CTkButton.__init__(self, container, **kwargs)
         self._config()
         
     def _config(self, text):
         self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
 
 class CheckBox(ctk.CTkCheckBox):
-    def __init__(self, container, command, text='CheckBox'):
-        ctk.CTkCheckBox.__init__(self, container, text=text, command=command)
+    def __init__(self, container, **kwargs):
+        ctk.CTkCheckBox.__init__(self, container, **kwargs)
         self._config()
     
     def _config(self):
@@ -57,7 +57,6 @@ class App():
         self.window.title(title)
         
         self.camera = camera
-        self.camera.config(depth=False)
         
         self.config_size = {
             'init_size': [1360, 1080],
@@ -85,6 +84,7 @@ class App():
             self.__add_depth_frame()
         
         self.__add_temporal_filter_cb()
+        self.__add_yolo_cb()
         
     def __add_color_frame(self):
         self.color_frame_display = Frame(self.window, 'Color Frame')
@@ -95,16 +95,31 @@ class App():
         self.depth_frame_display.place(relx=1, rely=1, x=-10, anchor='e')
     
     def __add_temporal_filter_cb(self):
-        temporal_filter_cb = CheckBox(self.window, command=self.__temporal_button_filter_cb, text='Temporal FIlter')
-        temporal_filter_cb.place(x=200, y=300)
-        
-    def __temporal_button_filter_cb(self):
-        pass
+        temporal_filter_cb = CheckBox(self.window, 
+                                    #   variable=self.camera.temporal_filter
+                                      )
+        temporal_filter_cb.place(x=10, y=7)
     
+    def __add_yolo_cb(self):
+        self.yolo_var = ctk.StringVar(value='on')
+        yolo_cb = CheckBox(self.window, 
+                        #    variable=self.yolo_var, command=self.__cb_command('yolo'),
+                           onvalue='on', offvalue='off', text='YOLOv8')
+        yolo_cb.place(x=180, y=7)
+        
+    def __cb_command(self, arg):
+        if arg == 'temporal':
+            pass
+        if arg == 'yolo':
+            # if self.yolo_var == 'on':
+            #     self.camera.yolo = True
+            # else : self.camera.yolo = False
+            
+            pass
+            
     def run(self):
         self.isrun = True
         self.loop()
-        self.close()
     
     def loop(self):
         depth_img, _, color_img = self.camera.get_frame(show=False)
