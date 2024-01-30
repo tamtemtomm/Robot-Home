@@ -19,7 +19,6 @@ class DepthCamera :
         self.data_dir = data_dir
         self.previous_frame = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        
         self.model = None
         
     def run(self,
@@ -30,7 +29,7 @@ class DepthCamera :
             width=640,
             height=480,
             fps=30,
-            save_data = False,
+            save_data = True,
             ):
         
         ##---------------------------------------------------------------------------------------------------------
@@ -62,15 +61,7 @@ class DepthCamera :
         # SAVE DATA INITIALITATION
         
         if save_data:
-            t = time.localtime()
-            current_time = f'waktu-{time.strftime("%Y-%m-%d %H-%M-%S", t)}'
-            data_directory = os.path.join(self.data_dir, current_time)
-            print(data_directory)
-            os.makedirs(self.data_dir, exist_ok=True)
-            os.makedirs(data_directory, exist_ok=True)
-            os.makedirs(os.path.join(data_directory, 'depth'))
-            os.makedirs(os.path.join(data_directory, 'color'))
-            os.makedirs(os.path.join(data_directory, 'depth_data'))
+            camera_data = CameraData(self.data_dir, color=color, depth=depth, depth_data=depth)
         
         ##---------------------------------------------------------------------------------------------------------
         # DEPTH STREAM INITIALITATION
@@ -100,9 +91,7 @@ class DepthCamera :
                 depth_frame = depth_stream.read_frame()
                 depth_frame_data = depth_frame.get_buffer_as_uint16()
                 img_depth = np.frombuffer(depth_frame_data, dtype=np.uint16).astype(np.float32)
-                
                 img_depth.shape = (480, 640)
-                
                 depth_image = cv2.normalize(img_depth, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 
                 # depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
@@ -137,15 +126,12 @@ class DepthCamera :
                                         
                     color_image = annotator.result()         
                 
-                cv2.imshow("Color Image", color_image)
+                cv2.imshow("Color Image", color_image,)
                             
             ##----------------------------------------------------------------------------------------------------
             # SAVING DATA
             if save_data:
-                cv2.imwrite(os.path.join(data_directory, 'color', f'color_{i}')+'.jpg', color_image)
-                cv2.imwrite(os.path.join(data_directory, 'depth', f'depth_{i}')+'.jpg', depth_image)
-                with open(os.path.join(data_directory, 'depth_data', f'depth_data_{i}')+'.txt', 'w') as f:
-                    json.dump(img_depth.reshape(480, 640).tolist(), f)
+                camera_data.save(color_image, depth_image, img_depth)
                 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -201,3 +187,35 @@ class DepthCamera :
         else : 
             result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
             return result
+    
+class CameraData :
+    def __init__(self, data_dir, color=True, depth=True, depth_data=True):
+        self.color = color
+        self.depth = depth
+        self.depth_data = depth_data
+        
+        t = time.localtime()
+        self.current_time = f'waktu-{time.strftime("%Y-%m-%d %H-%M-%S", t)}'
+        self.data_directory = os.path.join(data_dir, self.current_time)
+        print(f'Saving data to the {self.data_directory}')
+        os.makedirs(data_dir, exist_ok=True)
+        os.makedirs(self.data_directory, exist_ok=True)
+        if self.color : 
+            os.makedirs(os.path.join(self.data_directory, 'depth'))
+        if self.depth:
+            os.makedirs(os.path.join(self.data_directory, 'color'))
+        if self.depth_data : 
+            os.makedirs(os.path.join(self.data_directory, 'depth_data'))
+        
+        self.i = 0
+    
+    def save(self, color_image=None, depth_image=None, img_depth=None):
+        if self.color:
+            cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
+        if self.depth:
+            cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
+        if self.depth_data:
+            with open(os.path.join(self.data_directory, 'depth_data', f'depth_data_{self.i}')+'.txt', 'w') as f:
+                json.dump(img_depth.reshape(480, 640).tolist(), f)
+        
+        self.i += 1
