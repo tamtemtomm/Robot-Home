@@ -44,7 +44,7 @@
 #define DXL_ID1               1
 #define DXL_PROTOCOL_VERSION  2.0
 
-#define RAD 57.29577951
+// #define RAD 57.29577951
 
 const int GRIPPER_LIM[2] = {196,244};
 const int UPPER_LIM[2] = {181,287};
@@ -68,11 +68,11 @@ SoftwareSerial soft_serial(7, 8); // DYNAMIXELShield UART RX/TX
 DynamixelShield dxl;
 StringSplitter *stsp;
 
-int x,y,z;
+int servoa, servob, servoc;
 // using namespace ControlTableItem;
 
 void setup() {
-  DEBUG_SERIAL.begin(19200);
+  DEBUG_SERIAL.begin(115200);
   dxl.begin(57600);
   dxl.setPortProtocolVersion(DXL_PROTOCOL_VERSION);
   dxl.ping(DXL_ID);
@@ -108,11 +108,13 @@ void loop() {
       return;
     }
 
-    x = stsp->getItemAtIndex(0).toInt();
-    y = stsp->getItemAtIndex(1).toInt();
-    z = stsp->getItemAtIndex(2).toInt();
+    servoa = stsp->getItemAtIndex(0).toInt();
+    servob = stsp->getItemAtIndex(1).toInt();
+    servoc = stsp->getItemAtIndex(2).toInt();
     
-    move_arm(x, y, z);
+    servo_degree(servoa, DXL_ID1);
+    servo_degree(servob, DXL_ID2);
+    servo_degree(servoc, DXL_ID);
   }
 }
 
@@ -127,13 +129,13 @@ void gripper_init(){
   dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, DXL_ID2, 50);
 }
 
-void move_arm(double x, double y, double z){
-  double b = atan2(z,x)*RAD; 
-  b = b<0 ? 360+b : b;
+// void move_arm(double x, double y, double z){
+//   double b = atan2(z,x)*RAD; 
+//   b = b<0 ? 360+b : b;
 
-  DEBUG_SERIAL.println(b);
-  servo_degree(b, DXL_ID1);
-}
+//   DEBUG_SERIAL.println(b);
+//   servo_degree(b, DXL_ID1);
+// }
 
 void servo_degree(float target_val, uint8_t id){
   switch(id){

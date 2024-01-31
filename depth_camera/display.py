@@ -120,6 +120,7 @@ class App():
     def run(self):
         self.isrun = True
         self.loop()
+        self.window.mainloop()
     
     def loop(self):
         depth_img, _, color_img = self.camera.get_frame(show=False)
@@ -133,8 +134,6 @@ class App():
         
         if self.isrun:
             self.window.after(14, self.loop)
-            
-        self.window.mainloop()
 
     def close(self):
         self.isrun = False
