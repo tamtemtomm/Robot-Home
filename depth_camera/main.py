@@ -6,7 +6,7 @@ if __name__ == '__main__':
 
     # Change cam parameter based on your camera
     # thread_progress = False to unable threading function
-    cam = DepthCamera(cam = 0)
+    cam = DepthCamera(cam = 1)
     
     # .config parameters :
     # 1. depth           : True (Default) | False 
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # 7. fps             : 30  (DEFAULT)
     # 8. save_data       : True           | False(Default)
 
-    cam.config(depth=False)
+    cam.config()
     
     app = App(cam)
     app.run()

@@ -8,6 +8,8 @@ from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator
 import threading
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 from config import *
 
 class DepthCamera :
@@ -19,7 +21,7 @@ class DepthCamera :
         self.cam = cam
         self.redist = redist
         self.data_dir = data_dir
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
         
         self.thread_progress = thread_progress
         if self.thread_progress:
@@ -116,7 +118,7 @@ class DepthCamera :
         ##----------------------------------------------------------------------------------------------------
         # GET DEPTH FRAME 
         if self.depth:
-            self.depth_image, self.img_depth = self.depth_stream.get_frame(colormapr=self.colormap,
+            self.depth_image, self.img_depth = self.depth_stream.get_frame(colormap=self.colormap,
                                                                            temporal_filter=self.temporal_filter)
             if show: 
                 cv2.imshow('Depth Image', self.depth_image)
@@ -267,7 +269,7 @@ class ColorStream:
         return img
 
     def _add_distance_estimation(self, img, mask, img_depth, bbox):
-        mask_segment = mask.data.to(self.device).numpy()
+        mask_segment = mask.data.to(device).numpy()
         mask_segment.shape = (480, 640)
         
         center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))

@@ -92,7 +92,7 @@ class App():
         
     def __add_depth_frame(self):
         self.depth_frame_display = Frame(self.window, 'Depth Frame')
-        self.depth_frame_display.place(relx=1, rely=1, x=-10, anchor='e')
+        self.depth_frame_display.place(relx=1, rely=0.4, x=-10, anchor='e')
     
     def __add_temporal_filter_cb(self):
         temporal_filter_cb = CheckBox(self.window, 
