@@ -6,7 +6,7 @@ if __name__ == '__main__':
 
     # Change cam parameter based on your camera
     # thread_progress = False to unable threading function
-    cam = DepthCamera(cam = 0)
+    cam = DepthCamera(cam = 0, thread_progress=False)
     
     # .config parameters :
     # 1. depth           : True (Default) | False 
