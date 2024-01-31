@@ -85,6 +85,7 @@ class App():
         
         self.__add_temporal_filter_cb()
         self.__add_yolo_cb()
+        self.__add_colormap_cb()
         
     def __add_color_frame(self):
         self.color_frame_display = Frame(self.window, 'Color Frame')
@@ -97,6 +98,7 @@ class App():
     def __add_temporal_filter_cb(self):
         temporal_filter_cb = CheckBox(self.window, 
                                     #   variable=self.camera.temporal_filter
+                                      onvalue='on', offvalue='off', text='Temporal Filter'
                                       )
         temporal_filter_cb.place(x=10, y=7)
     
@@ -106,7 +108,14 @@ class App():
                         #    variable=self.yolo_var, command=self.__cb_command('yolo'),
                            onvalue='on', offvalue='off', text='YOLOv8')
         yolo_cb.place(x=180, y=7)
-        
+    
+    def __add_colormap_cb(self):
+        self.yolo_var = ctk.StringVar(value='on')
+        yolo_cb = CheckBox(self.window, 
+                        #    variable=self.yolo_var, command=self.__cb_command('yolo'),
+                            onvalue='on', offvalue='off', text='ColorMap')
+        yolo_cb.place(x=350, y=7)
+    
     def __cb_command(self, arg):
         if arg == 'temporal':
             pass
@@ -119,8 +128,11 @@ class App():
             
     def run(self):
         self.isrun = True
+        
         self.loop()
         self.window.mainloop()
+        
+        self.close()
     
     def loop(self):
         depth_img, _, color_img = self.camera.get_frame(show=False)
@@ -138,7 +150,6 @@ class App():
     def close(self):
         self.isrun = False
         self.camera.close()
-        self.window.destroy()
     
     def _convert_to_pil(self, img, depth=False):
         if depth:

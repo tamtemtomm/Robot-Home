@@ -102,7 +102,6 @@ class DepthCamera :
     
     def loop(self, show=True):
          while True :
-            
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show)
             
             ##----------------------------------------------------------------------------------------------------
@@ -137,6 +136,9 @@ class DepthCamera :
                 cv2.imshow("Color Image", self.color_image)
         
         else : self.color_image = None
+        
+        if self.save_data:
+            self.camera_data.save(self.color_image, self.depth_image, self.img_depth)
         
         return self.depth_image, self.img_depth, self.color_image
     
