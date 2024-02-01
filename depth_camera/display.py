@@ -28,16 +28,16 @@ class Frame(ctk.CTkFrame):
         self.img = img
 
 class Button(ctk.CTkButton):
-    def __init__(self, container,  **kwargs):
-        ctk.CTkButton.__init__(self, container, **kwargs)
+    def _init_(self, container,  **kwargs):
+        ctk.CTkButton._init_(self, container, **kwargs)
         self._config()
         
     def _config(self, text):
         self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
 
 class CheckBox(ctk.CTkCheckBox):
-    def __init__(self, container, **kwargs):
-        ctk.CTkCheckBox.__init__(self, container, **kwargs)
+    def _init_(self, container, **kwargs):
+        ctk.CTkCheckBox._init_(self, container, **kwargs)
         self._config()
     
     def _config(self):

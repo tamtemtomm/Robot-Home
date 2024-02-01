@@ -26,6 +26,8 @@ class DepthCamera :
         self.thread_progress = thread_progress
         if self.thread_progress:
             self.thread = threading.Thread(target=self.get_frame, daemon=True, args=(False,))
+        
+        self.results = Results()
     
     def config(self, 
                 depth=True,
@@ -56,7 +58,7 @@ class DepthCamera :
         ##---------------------------------------------------------------------------------------------------------
         # YOLO MODEL INITIALISATION
         
-        self.model = self._yoloModel()
+        self.model, self.gripper_model = self._model()
         
         ##---------------------------------------------------------------------------------------------------------
         # SAVE DATA INITIALITATION
@@ -71,9 +73,9 @@ class DepthCamera :
         # DEPTH STREAM INITIALITATION
         if depth:
             self.depth_stream = DepthStream(redist=self.redist, 
-                                       width=width, 
-                                       height=height, 
-                                       fps=fps)
+                                            width=width, 
+                                            height=height, 
+                                            fps=fps)
         else : self.depth_image = None
         
         ##---------------------------------------------------------------------------------------------------------
@@ -95,6 +97,8 @@ class DepthCamera :
     ## Add Extra Functions
     
     def close(self):
+        # print(f'Result : {self.results.get_data()}')
+
         if self.depth:
             self.depth_stream.close()
         if self.color:
@@ -129,12 +133,17 @@ class DepthCamera :
         ##----------------------------------------------------------------------------------------------------
         # GET COLOR FRAME 
         if self.color:       
-            self.color_image = self.color_stream.get_frame(img_depth=self.img_depth, 
+            self.color_image, self.coordinate = self.color_stream.get_frame(img_depth=self.img_depth, 
                                                            model=self.model if self.yolo else None,
-                                                           temporal_filter=self.temporal_filter)
+                                                           temporal_filter=self.temporal_filter,
+                                                           export_data=True)
             if show: 
                 cv2.imshow("Color Image", self.color_image)
-        
+
+            print(self.coordinate)
+
+            self.results.append(self.coordinate)
+
         else : self.color_image = None
         
         if self.save_data:
@@ -142,10 +151,23 @@ class DepthCamera :
         
         return self.depth_image, self.img_depth, self.color_image
     
-    def _yoloModel(self):
-        model = YOLO(YOLO_SEG_MODEL_PATH)
-        return model.to(self.device)
-    
+    def _model(self):
+        try:
+            model = YOLO(YOLO_SEG_MODEL_PATH)
+            model = model.to(self.device)
+        except:
+            model = None
+        
+        # try:
+        #     gripper_model = YOLO(YOLO_GRIPPER_MODEL_PATH)
+        #     gripper_model = gripper_model.to(self.device)
+        # except:
+        #     gripper_model = None
+        
+        gripper_model = None
+
+        return model, gripper_model
+
     def _check_params( self,
             depth,
             color,
@@ -217,7 +239,18 @@ class ColorStream:
     def __init__(self, cam):
         self.cap = cv2.VideoCapture(cam)
             
-    def get_frame(self, img_depth=None, model=None, temporal_filter=False):
+    def get_frame(self, 
+                  img_depth=None, 
+                  model=None, 
+                  temporal_filter=False,
+                  export_data=False
+                ):
+        self.coordinate_data = {
+            'gripper_loc':None,
+            'items_loc':{},
+            'config':None
+        }
+
         self.temporal_filter = temporal_filter
         if self.temporal_filter:
             self.prev_color_image = None
@@ -232,7 +265,10 @@ class ColorStream:
             color_image = self._temporal_filter(color_image, self.prev_color_image)
             self.prev_color_image = color_image
         
-        return color_image
+        if export_data:
+            return color_image, self.coordinate_data
+        else:
+            return color_image
     
     def close(self):
         self.cap.release()
@@ -252,14 +288,30 @@ class ColorStream:
     
     def _annotate_segment(self, img, box, mask, annotator, img_depth) : 
         bbox = box.xyxy[0]
-        class_name = box.cls
+        class_name = self.model.names[int(box.cls)]
         border = mask.xy[0]
         
-        annotator.box_label(bbox, self.model.names[int(class_name)])
+        annotator.box_label(bbox, class_name)
         img = self._add_border(img, border)
 
+        # img = self._add_distance_estimation(img, mask, img_depth, bbox)
         if img_depth is not None:
-            img = self._add_distance_estimation(img, mask, img_depth, bbox)
+            mask_segment = mask.data.to(device).numpy()
+            mask_segment.shape = (480, 640)
+            depth_mask = img_depth * mask_segment
+            depth_estimation = int(np.sum(depth_mask)/np.sum(mask_segment)/10)
+        else :
+            mask_segment = None
+            depth_estimation = 0
+
+        center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
+        location = (center[0], center[1], depth_estimation)
+        
+        img = cv2.putText(img, f'{location}', center, DEFAULT_FONT,  
+                0.4, (0, 0, 255), 1, DEFAULT_LINE)
+        
+        self.coordinate_data['items_loc'][class_name] = []
+        self.coordinate_data['items_loc'][class_name].append((location, mask_segment))
         
         return img, annotator
 
@@ -268,18 +320,6 @@ class ColorStream:
             img[int(b)-1, int(a)-1, 0] = 0
             img[int(b)-1, int(a)-1, 1] = 0
             img[int(b)-1, int(a)-1, 2] = 255
-        return img
-
-    def _add_distance_estimation(self, img, mask, img_depth, bbox):
-        mask_segment = mask.data.to(device).numpy()
-        mask_segment.shape = (480, 640)
-        
-        center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
-        
-        depth_mask = img_depth * mask_segment
-        depth_estimation = int(np.sum(depth_mask)/np.sum(mask_segment)/10)
-        img = cv2.putText(img, f'{depth_estimation} cm', center, DEFAULT_FONT,  
-                0.4, (0, 0, 255), 1, DEFAULT_LINE)
         return img
     
     def _temporal_filter(self, frame, prev_frame=None, alpha=0.5):
@@ -322,7 +362,21 @@ class CameraData :
         
         self.i += 1
 
+class Results:
+    def __init__(self):
+        self.results = []
+    
+    def append(self, data):
+        self.results.append(data)
+    
+    def get_data(self):
+        return self.results
+
+    def process(self):
+        pass
+
+
 if __name__ == '__main__':
-    cam = DepthCamera(cam=0)
-    cam.config(depth=False, yolo=False)
+    cam = DepthCamera(cam=0, thread_progress=False)
+    cam.config(depth=False)
     cam.run()
