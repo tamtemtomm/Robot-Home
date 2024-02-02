@@ -94,7 +94,9 @@ void setup() {
   gripper_init();
   DEBUG_SERIAL.print("Init finished");
   
-  move_arm(0,0,0);
+  servo_degree(120, DXL_ID1);
+  servo_degree(UPPER_LIM[1], DXL_ID2);
+  servo_degree(GRIPPER_LIM[1], DXL_ID);
 }
 
 void loop() {
@@ -103,18 +105,27 @@ void loop() {
     data.trim();
     stsp = new StringSplitter(data, ',', 3);
 
-    if(stsp->getItemCount() != 3){
-      DEBUG_SERIAL.println(stsp->getItemCount());
-      return;
+    switch(stsp->getItemCount()){
+      case 3:
+        servoa = stsp->getItemAtIndex(0).toInt();
+        servob = stsp->getItemAtIndex(1).toInt();
+        servoc = stsp->getItemAtIndex(2).toInt();
+        break;
+      case 2:
+        servoa = stsp->getItemAtIndex(0).toInt();
+        servob = stsp->getItemAtIndex(1).toInt();
+        servoc = GRIPPER_LIM[1];
+        break;
+      default:
+        DEBUG_SERIAL.println("Not enough arg : "String(stsp->getItemCount()));
+        return;
     }
 
-    servoa = stsp->getItemAtIndex(0).toInt();
-    servob = stsp->getItemAtIndex(1).toInt();
-    servoc = stsp->getItemAtIndex(2).toInt();
-    
     servo_degree(servoa, DXL_ID1);
     servo_degree(servob, DXL_ID2);
     servo_degree(servoc, DXL_ID);
+    
+    DEBUG_SERIAL.println("Success");
   }
 }
 
@@ -128,14 +139,6 @@ void gripper_init(){
   dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, DXL_ID2, 0);
   dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, DXL_ID2, 50);
 }
-
-// void move_arm(double x, double y, double z){
-//   double b = atan2(z,x)*RAD; 
-//   b = b<0 ? 360+b : b;
-
-//   DEBUG_SERIAL.println(b);
-//   servo_degree(b, DXL_ID1);
-// }
 
 void servo_degree(float target_val, uint8_t id){
   switch(id){
