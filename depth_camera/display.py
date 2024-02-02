@@ -79,8 +79,8 @@ class App():
         self.__setup()
         
     def __setup(self):
-        if self.camera.color:
-            self.__add_color_frame()
+
+        self.__add_color_frame()
             
         if self.camera.depth : 
             self.__add_depth_frame()
@@ -141,10 +141,10 @@ class App():
     
     def loop(self, verbose=False):
         depth_img, _, color_img = self.camera.get_frame(show=False, verbose=verbose)
-        if self.camera.color:
-            color_img =  self._convert_to_pil(color_img)
-            self.color_frame_display.img_update(color_img)
         
+        color_img =  self._convert_to_pil(color_img)
+        self.color_frame_display.img_update(color_img)
+    
         if self.camera.depth:
             depth_img =  self._convert_to_pil(depth_img)
             self.depth_frame_display.img_update(depth_img)

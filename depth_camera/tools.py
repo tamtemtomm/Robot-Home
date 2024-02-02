@@ -18,6 +18,7 @@ class DepthCamera :
                  redist = REDIST_PATH,
                  data_dir = DATA_DIR,
                  thread_progress=True):
+        
         self.cam = cam
         self.redist = redist
         self.data_dir = data_dir
@@ -26,32 +27,31 @@ class DepthCamera :
         self.thread_progress = thread_progress
         if self.thread_progress:
             self.thread = threading.Thread(target=self.get_frame, daemon=True, args=(False,))
+            
+        openni2.initialize(self.redist)
+        if openni2.Device.open_all() == []:
+            self.depth=False
+            self.depth_data=False
+        else :
+            self.depth=True
+            self.depth_data=True
         
         self.data = CameraData()
     
     def config(self, 
-                depth=True,
-                color=True,
                 yolo=True,
                 temporal_filter=False,
                 colormap=False,
-                width=640,
-                height=480,
-                fps=30,
                 save_data = False):
-        self.width = width
-        self.height = height
-        self.color = color
-        self.depth = depth
         
-        if self._check_params(depth,
-            color,
+        self.width = 640
+        self.height = 480
+        self.fps = 30
+        
+        if self._check_params(
             yolo,
             temporal_filter,
             colormap,
-            width,
-            height,
-            fps,
             save_data) :
             return 
         
@@ -62,18 +62,16 @@ class DepthCamera :
         
         ##---------------------------------------------------------------------------------------------------------
         # DEPTH STREAM INITIALITATION
-        if depth:
+        if self.depth:
             self.depth_stream = DepthStream(redist=self.redist, 
-                                            width=width, 
-                                            height=height, 
-                                            fps=fps)
+                                            width=self.width, 
+                                            height=self.height, 
+                                            fps=self.fps)
         else : self.depth_image = None
         
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
-        if color:
-            self.color_stream = ColorStream(cam=self.cam)
-        else : self.color_image = None
+        self.color_stream = ColorStream(cam=self.cam)
         
     def run(self, verbose=False):
         
@@ -92,8 +90,7 @@ class DepthCamera :
 
         if self.depth:
             self.depth_stream.close()
-        if self.color:
-            self.color_stream.close()
+        self.color_stream.close()
     
     def loop(self, show=True, verbose=False):
         if self.save_data:
@@ -130,23 +127,20 @@ class DepthCamera :
             self.img_depth = None
             
         ##----------------------------------------------------------------------------------------------------
-        # GET COLOR FRAME 
-        if self.color:       
-            self.color_image, self.cur_data = self.color_stream.get_frame(
-                                                                img_depth=self.img_depth, 
-                                                                model=self.model if self.model else None,
-                                                                gripper_model=self.gripper_model if self.gripper_model else None,
-                                                                temporal_filter=self.temporal_filter,
-                                                                data = self.cur_data)
-            if show: 
-                cv2.imshow("Color Image", self.color_image)
+        # GET COLOR FRAME       
+        self.color_image, self.cur_data = self.color_stream.get_frame(
+                                                            img_depth=self.img_depth, 
+                                                            model=self.model if self.model else None,
+                                                            gripper_model=self.gripper_model if self.gripper_model else None,
+                                                            temporal_filter=self.temporal_filter,
+                                                            data = self.cur_data)
+        if show: 
+            cv2.imshow("Color Image", self.color_image)
 
-            if verbose:
-                print(self.cur_data)
+        if verbose:
+            print(self.cur_data)
 
-            self.data.append(self.cur_data)
-
-        else : self.color_image = None
+        self.data.append(self.cur_data)
         
         if self.save_data:
             self.data.save_current()
@@ -171,29 +165,21 @@ class DepthCamera :
         return model, gripper_model
 
     def _check_params( self,
-            depth,
-            color,
             yolo,
             temporal_filter,
             colormap,
-            width,
-            height,
-            fps,
             save_data):
         
-        for args in [depth, color, yolo, colormap, temporal_filter, save_data]:
-            if isinstance(args, bool) == False:
-                print(f'(depth, color, yolo, colormap, temporal_filter, save_data) parameter only accept boolean datatype')
-                return True
-        for args in [width, height, fps]:
-            if isinstance(args, int) == False:
-                print(f'(width, height, fps) parameter only accept int datatype')
-                return True
+        # for args in [depth, color, yolo, colormap, temporal_filter, save_data]:
+        #     if isinstance(args, bool) == False:
+        #         print(f'(depth, color, yolo, colormap, temporal_filter, save_data) parameter only accept boolean datatype')
+        #         return True
+        # for args in [width, height, fps]:
+        #     if isinstance(args, int) == False:
+        #         print(f'(width, height, fps) parameter only accept int datatype')
+        #         return True
             
         self.yolo = yolo
-        self.color = color
-        self.depth = depth
-        self.depth_data = depth
         self.temporal_filter = temporal_filter
         self.colormap = colormap
         self.save_data = save_data
@@ -338,15 +324,22 @@ class ColorStream:
                 0.4, (0, 0, 255), 1, DEFAULT_LINE)
         
         self.data['items_loc'][class_name] = []
-        self.data['items_loc'][class_name].append((bbox.numpy(), mask_segment))
+        self.data['items_loc'][class_name].append({'bbox':bbox.numpy(), 
+                                                   'location':location, 
+                                                   'mask':mask_segment})
         
         return img, annotator
     
     def _annotate_gripper_segment(self, img, box, img_depth):
         bbox = box.xyxy[0]
         bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+        center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
+        depth_estimation = None
+        
+        location = (center[0], center[1], depth_estimation)
         img = self._add_square(img, bbox)
-        self.data['gripper_loc'] = bbox
+        self.data['gripper_loc'] = {'bbox':bbox,
+                                    'location':location}
         return img
         
     def _add_square(img, box):
@@ -409,6 +402,9 @@ class CameraData:
     def get_data(self):
         return self.data
     
+    def get_cur_data(self):
+        return self.cur_data
+    
     def save_current(self):
         
         with open(os.path.join(self.data_directory, 'data', f'data_{self.i}')+'.txt', 'w') as f:
@@ -433,6 +429,6 @@ class CameraData:
 
 
 if __name__ == '__main__':
-    cam = DepthCamera(cam=0, thread_progress=False)
-    cam.config(depth=False)
+    cam = DepthCamera(cam=0,)
+    cam.config()
     cam.run(verbose=True)
