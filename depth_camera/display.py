@@ -1,6 +1,5 @@
 import customtkinter as ctk
 import cv2
-import threading
 from PIL import Image
 from config import *
 from tools import DepthCamera
@@ -71,6 +70,9 @@ class App():
         else :
             self.window.geometry(f"{self.config_size['init_size'][0]}x{self.config_size['init_size'][1]}")
         
+        if self.camera.save_data:
+            self.camera.data.setup()
+        
         if self.camera.thread_progress:
             self.camera.thread.start()
         
@@ -126,16 +128,16 @@ class App():
             
             pass
             
-    def run(self):
+    def run(self, verbose=False):
         self.isrun = True
         
-        self.loop()
+        self.loop(verbose=verbose)
         self.window.mainloop()
         
         self.close()
     
-    def loop(self):
-        depth_img, _, color_img = self.camera.get_frame(show=False)
+    def loop(self, verbose=False):
+        depth_img, _, color_img = self.camera.get_frame(show=False, verbose=verbose)
         if self.camera.color:
             color_img =  self._convert_to_pil(color_img)
             self.color_frame_display.img_update(color_img)
@@ -166,4 +168,4 @@ class App():
 if __name__ == '__main__':
     camera = DepthCamera(cam=0, thread_progress=True)
     app = App(camera)
-    app.run()
+    app.run(verbose=True)
