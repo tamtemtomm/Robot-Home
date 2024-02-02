@@ -1,4 +1,3 @@
-import os, shutil
 import cv2
 
 YOLO_BBOX_MODEL_PATH   = ".//models//yolov8n.pt"

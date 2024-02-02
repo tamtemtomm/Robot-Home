@@ -75,14 +75,14 @@ class DepthCamera :
             self.color_stream = ColorStream(cam=self.cam)
         else : self.color_image = None
         
-    def run(self):
+    def run(self, verbose=False):
         
         if self.thread_progress:
             self.thread.start()
         else : 
-            self.loop()
+            self.loop(verbose=verbose)
             
-        self.close()
+        self.close(verbose=verbose)
         
     ##-----------------------------------------------------------------------------------------------
     ## Add Extra Functions
@@ -95,24 +95,30 @@ class DepthCamera :
         if self.color:
             self.color_stream.close()
     
-    def loop(self, show=True):
-         while True :
-            self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show)
+    def loop(self, show=True, verbose=False):
+        if self.save_data:
+            self.setup()
+        
+        while True :
+            self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
     
-    def get_frame(self, show=False):
+    def get_frame(self, 
+                  show=False, 
+                  verbose=False):
         ##----------------------------------------------------------------------------------------------------
         # GET DEPTH FRAME 
         
         self.cur_data = self.data.set_data()
         
         if self.depth:
-            self.depth_image, self.img_depth, self.cur_data = self.depth_stream.get_frame(colormap=self.colormap,
-                                                                           temporal_filter=self.temporal_filter,
-                                                                           data = self.cur_data)
+            self.depth_image, self.img_depth, self.cur_data = self.depth_stream.get_frame(
+                                                                colormap=self.colormap,
+                                                                temporal_filter=self.temporal_filter,
+                                                                data = self.cur_data)
             if show: 
                 cv2.imshow('Depth Image', self.depth_image)
         
@@ -125,13 +131,15 @@ class DepthCamera :
         if self.color:       
             self.color_image, self.cur_data = self.color_stream.get_frame(
                                                                 img_depth=self.img_depth, 
-                                                                model=self.model if self.yolo else None,
+                                                                model=self.model if self.model else None,
+                                                                gripper_model=self.gripper_model if self.gripper_model else None,
                                                                 temporal_filter=self.temporal_filter,
                                                                 data = self.cur_data)
             if show: 
                 cv2.imshow("Color Image", self.color_image)
 
-            print(self.cur_data)
+            if verbose:
+                print(self.cur_data)
 
             self.data.append(self.cur_data)
 
@@ -242,6 +250,7 @@ class ColorStream:
     def get_frame(self, 
                   img_depth=None, 
                   model=None, 
+                  gripper_model=None,
                   temporal_filter=False,
                   data = None
                 ):
@@ -253,18 +262,22 @@ class ColorStream:
         if self.temporal_filter:
             self.prev_color_image = None
         
-        _, color_image = self.cap.read()
+        _, color_image_raw = self.cap.read()
         
         if data:
-            self.data['color']['raw'] = color_image
+            self.data['color']['raw'] = color_image_raw
+            
+        if self.temporal_filter :
+            color_image_raw= self._temporal_filter(color_image_raw, self.prev_color_image)
+            self.prev_color_image = color_image_raw
         
         if model is not None:
             self.model = model
-            color_image = self._yolo(color_image, img_depth)
+            color_image = self._yolo(color_image_raw, img_depth)
         
-        if self.temporal_filter :
-            color_image = self._temporal_filter(color_image, self.prev_color_image)
-            self.prev_color_image = color_image
+        if gripper_model is not None:
+            self.gripper_model = gripper_model
+            color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
         
         if data : 
             self.data['color']['annot'] = color_image
@@ -287,6 +300,14 @@ class ColorStream:
                             
         img = annotator.result() 
         return img
+    
+    def _yolo_gripper(self, img, img_raw, img_depth):
+        results = self.gripper_model.predict(img_raw, verbose=False)
+        if results:
+            for r in results:
+                if r.boxes:
+                    for box in r.boxes:
+                        img = self._annotate_gripper_segment(img, box, img_depth)
     
     def _annotate_segment(self, img, box, mask, annotator, img_depth) : 
         bbox = box.xyxy[0]
@@ -317,6 +338,20 @@ class ColorStream:
         self.data['items_loc'][class_name].append((bbox.numpy(), mask_segment))
         
         return img, annotator
+    
+    def _annotate_gripper_segment(self, img, box, img_depth):
+        bbox = box.xyxy[0]
+        bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+        img = self._add_square(img, bbox)
+        self.data['gripper_loc'] = bbox
+        return img
+        
+    def _add_square(img, box):
+        x1, y1, x2, y2 = box
+        img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
+        img - cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
+                          0.4, (0, 0, 255), 1, DEFAULT_LINE)
+        return img
 
     def _add_border(self, img, border):
         for a, b in border:
@@ -348,10 +383,8 @@ class CameraData:
             'items_loc':{},
             'config':None
         }
-        
-        self._setup_dir()
     
-    def _setup_dir(self):
+    def setup(self):
         t = time.localtime()
         self.current_time = f'waktu-{time.strftime("%Y-%m-%d %H-%M-%S", t)}'
         self.data_directory = os.path.join(self.data_dir, self.current_time)
