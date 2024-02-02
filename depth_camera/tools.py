@@ -27,7 +27,7 @@ class DepthCamera :
         if self.thread_progress:
             self.thread = threading.Thread(target=self.get_frame, daemon=True, args=(False,))
         
-        self.results = Results()
+        self.data = CameraData()
     
     def config(self, 
                 depth=True,
@@ -61,15 +61,6 @@ class DepthCamera :
         self.model, self.gripper_model = self._model()
         
         ##---------------------------------------------------------------------------------------------------------
-        # SAVE DATA INITIALITATION
-        
-        if save_data:
-            self.camera_data = CameraData(self.data_dir, 
-                                     color=color, 
-                                     depth=depth, 
-                                     depth_data=depth)
-        
-        ##---------------------------------------------------------------------------------------------------------
         # DEPTH STREAM INITIALITATION
         if depth:
             self.depth_stream = DepthStream(redist=self.redist, 
@@ -97,7 +88,7 @@ class DepthCamera :
     ## Add Extra Functions
     
     def close(self):
-        # print(f'Result : {self.results.get_data()}')
+        # print(f'Result : {self.data.get_data()}')
 
         if self.depth:
             self.depth_stream.close()
@@ -108,11 +99,6 @@ class DepthCamera :
          while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show)
             
-            ##----------------------------------------------------------------------------------------------------
-            # SAVING DATA
-            if self.save_data:
-                self.camera_data.save(self.color_image, self.depth_image, self.img_depth)
-                
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
@@ -120,9 +106,13 @@ class DepthCamera :
     def get_frame(self, show=False):
         ##----------------------------------------------------------------------------------------------------
         # GET DEPTH FRAME 
+        
+        self.cur_data = self.data.set_data()
+        
         if self.depth:
-            self.depth_image, self.img_depth = self.depth_stream.get_frame(colormap=self.colormap,
-                                                                           temporal_filter=self.temporal_filter)
+            self.depth_image, self.img_depth, self.cur_data = self.depth_stream.get_frame(colormap=self.colormap,
+                                                                           temporal_filter=self.temporal_filter,
+                                                                           data = self.cur_data)
             if show: 
                 cv2.imshow('Depth Image', self.depth_image)
         
@@ -133,21 +123,22 @@ class DepthCamera :
         ##----------------------------------------------------------------------------------------------------
         # GET COLOR FRAME 
         if self.color:       
-            self.color_image, self.coordinate = self.color_stream.get_frame(img_depth=self.img_depth, 
-                                                           model=self.model if self.yolo else None,
-                                                           temporal_filter=self.temporal_filter,
-                                                           export_data=True)
+            self.color_image, self.cur_data = self.color_stream.get_frame(
+                                                                img_depth=self.img_depth, 
+                                                                model=self.model if self.yolo else None,
+                                                                temporal_filter=self.temporal_filter,
+                                                                data = self.cur_data)
             if show: 
                 cv2.imshow("Color Image", self.color_image)
 
-            print(self.coordinate)
+            print(self.cur_data)
 
-            self.results.append(self.coordinate)
+            self.data.append(self.cur_data)
 
         else : self.color_image = None
         
         if self.save_data:
-            self.camera_data.save(self.color_image, self.depth_image, self.img_depth)
+            self.data.save_current()
         
         return self.depth_image, self.img_depth, self.color_image
     
@@ -206,7 +197,8 @@ class DepthStream :
         self.depth_stream.start()
         self.depth_stream.set_video_mode(c_api.OniVideoMode(pixelFormat = c_api.OniPixelFormat.ONI_PIXEL_FORMAT_DEPTH_1_MM, resolutionX = width, resolutionY = height, fps = fps))
     
-    def get_frame(self, colormap=False, temporal_filter=False):
+    def get_frame(self, colormap=False, temporal_filter=False, data=None):
+     
         self.temporal_filter = temporal_filter
         if self.temporal_filter:
             self.prev_depth_image = None
@@ -215,6 +207,7 @@ class DepthStream :
         depth_frame_data = depth_frame.get_buffer_as_uint16()
         img_depth = np.frombuffer(depth_frame_data, dtype=np.uint16).astype(np.float32)
         img_depth.shape = (480, 640)
+        
         depth_image = cv2.normalize(img_depth, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         if colormap:
             depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
@@ -222,8 +215,15 @@ class DepthStream :
         if self.temporal_filter :
             depth_image = self._temporal_filter(depth_image, self.prev_depth_image)
             self.prev_depth_image = depth_image
-        
-        return depth_image, img_depth
+           
+        if data:
+            self.data = data
+            self.data['depth']['raw'] = img_depth
+            self.data['depth']['image'] = depth_image
+
+            return depth_image, img_depth, self.data
+            
+        return depth_image, img_depth, None
     
     def _temporal_filter(self, frame, prev_frame=None, alpha=0.5):
         if prev_frame is None : 
@@ -243,19 +243,20 @@ class ColorStream:
                   img_depth=None, 
                   model=None, 
                   temporal_filter=False,
-                  export_data=False
+                  data = None
                 ):
-        self.coordinate_data = {
-            'gripper_loc':None,
-            'items_loc':{},
-            'config':None
-        }
+        
+        if data :
+            self.data = data
 
         self.temporal_filter = temporal_filter
         if self.temporal_filter:
             self.prev_color_image = None
         
         _, color_image = self.cap.read()
+        
+        if data:
+            self.data['color']['raw'] = color_image
         
         if model is not None:
             self.model = model
@@ -265,10 +266,11 @@ class ColorStream:
             color_image = self._temporal_filter(color_image, self.prev_color_image)
             self.prev_color_image = color_image
         
-        if export_data:
-            return color_image, self.coordinate_data
-        else:
-            return color_image
+        if data : 
+            self.data['color']['annot'] = color_image
+            return color_image, self.data
+        
+        return color_image, None
     
     def close(self):
         self.cap.release()
@@ -293,11 +295,12 @@ class ColorStream:
         
         annotator.box_label(bbox, class_name)
         img = self._add_border(img, border)
+        
+        mask_segment = mask.data.to(device).numpy()
+        mask_segment.shape = (480, 640)
 
         # img = self._add_distance_estimation(img, mask, img_depth, bbox)
         if img_depth is not None:
-            mask_segment = mask.data.to(device).numpy()
-            mask_segment.shape = (480, 640)
             depth_mask = img_depth * mask_segment
             depth_estimation = int(np.sum(depth_mask)/np.sum(mask_segment)/10)
         else :
@@ -310,8 +313,8 @@ class ColorStream:
         img = cv2.putText(img, f'{location}', center, DEFAULT_FONT,  
                 0.4, (0, 0, 255), 1, DEFAULT_LINE)
         
-        self.coordinate_data['items_loc'][class_name] = []
-        self.coordinate_data['items_loc'][class_name].append((location, mask_segment))
+        self.data['items_loc'][class_name] = []
+        self.data['items_loc'][class_name].append((bbox.numpy(), mask_segment))
         
         return img, annotator
 
@@ -328,50 +331,66 @@ class ColorStream:
         else : 
             result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
             return result
-    
 
-class CameraData :
-    def __init__(self, data_dir, color=True, depth=True, depth_data=True):
-        self.color = color
-        self.depth = depth
-        self.depth_data = depth_data
+class CameraData:
+    def __init__(self, 
+                 data_dir=DATA_DIR):
+        self.results = []
+        self.data_dir = data_dir
+        self.data_template = {
+            'color':
+                {'raw':None,
+                 'annot':None},
+            'depth':
+                {'raw':None,
+                 'image':None},
+            'gripper_loc':None,
+            'items_loc':{},
+            'config':None
+        }
         
+        self._setup_dir()
+    
+    def _setup_dir(self):
         t = time.localtime()
         self.current_time = f'waktu-{time.strftime("%Y-%m-%d %H-%M-%S", t)}'
-        self.data_directory = os.path.join(data_dir, self.current_time)
+        self.data_directory = os.path.join(self.data_dir, self.current_time)
         print(f'Saving data to the {self.data_directory}')
-        os.makedirs(data_dir, exist_ok=True)
+        os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.data_directory, exist_ok=True)
-        if self.color : 
-            os.makedirs(os.path.join(self.data_directory, 'depth'))
-        if self.depth:
-            os.makedirs(os.path.join(self.data_directory, 'color'))
-        if self.depth_data : 
-            os.makedirs(os.path.join(self.data_directory, 'depth_data'))
-        
-        self.i = 0
+        os.makedirs(os.path.join(self.data_directory, 'depth'))
+        os.makedirs(os.path.join(self.data_directory, 'color'))
+        os.makedirs(os.path.join(self.data_directory, 'data'))
     
-    def save(self, color_image=None, depth_image=None, img_depth=None):
-        if self.color:
-            cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
-        if self.depth:
-            cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
-        if self.depth_data:
-            with open(os.path.join(self.data_directory, 'depth_data', f'depth_data_{self.i}')+'.txt', 'w') as f:
-                json.dump(img_depth.reshape(480, 640).tolist(), f)
-        
-        self.i += 1
-
-class Results:
-    def __init__(self):
-        self.results = []
+    def set_data(self):
+        self.i = 0
+        self.cur_data = self.data_template
+        return self.cur_data
     
     def append(self, data):
         self.results.append(data)
     
     def get_data(self):
         return self.results
+    
+    def save_current(self):
+        
+        with open(os.path.join(self.data_directory, 'data', f'data_{self.i}')+'.txt', 'w') as f:
+            f.write(str(self.cur_data))
+        
+        color_image = self.cur_data['color']['annot']
+        depth_image = self.cur_data['depth']['image']
+        
+        if color_image is not None:
+            cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
+        if depth_image is not None:
+            cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
+        
+        self.i += 1
 
+    def save(self):
+        pass
+    
     def process(self):
         pass
 
