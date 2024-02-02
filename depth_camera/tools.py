@@ -394,16 +394,11 @@ class CameraData:
     def set_data(self):
         self.i = 0
         self.cur_data = self.data_template
+        self.results = None
         return self.cur_data
     
     def append(self, data):
         self.data.append(data)
-    
-    def get_data(self):
-        return self.data
-    
-    def get_cur_data(self):
-        return self.cur_data
     
     def save_current(self):
         
@@ -424,10 +419,42 @@ class CameraData:
         with open(os.path.join(self.data_directory, 'data'+'.txt', 'w')) as f:
             f.write(str(self.data))
     
-    def process(self):
-        pass
-
-
+    def cur_process(self):
+        self.results = {
+            'min': self.get_min_distance()
+        }
+        
+        return self.results
+    
+    def get_min_distance(self):
+        min_distance = 9999999
+        min_location = None
+        min_target = None
+        
+        grip_loc = self.cur_data['gripper_loc']['location']
+        
+        if grip_loc is not None:
+            for item in self.cur_data['items_loc']:
+                if item:
+                    for i in item:
+                        distance = self.euclidian_distance(grip_loc, i['location'])
+                        if distance < min_distance:
+                            min_distance = distance
+                            min_location = i['location']
+                            min_target = grip_loc - i['location']
+        
+        return {
+            'distance'  : min_distance,
+            'location'  : min_location,
+            'target'    : min_target
+        }
+    
+    def euclidian_distance(self, arr_a, arr_b):
+        sum = 0
+        for a, b in zip(arr_a, arr_b):
+            sum += np.power((a - b), 2)
+        return np.square(sum)
+                        
 if __name__ == '__main__':
     cam = DepthCamera(cam=0,)
     cam.config()

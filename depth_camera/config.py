@@ -7,7 +7,7 @@ YOLO_MODEL_CONFIG = ".//models//config.yaml"
 YOLO_SAM_MODEL_PATH = ".//models//sam_b.pt"
 ICON_PATH = ""
 
-REDIST_PATH = '/Redist/'
+REDIST_PATH = './Redist/'
 DATA_DIR = 'data'
 
 DEFAULT_FONT = cv2.FONT_HERSHEY_SIMPLEX
