@@ -82,7 +82,7 @@ class DepthCamera :
         else : 
             self.loop(verbose=verbose)
             
-        self.close(verbose=verbose)
+        self.close()
         
     ##-----------------------------------------------------------------------------------------------
     ## Add Extra Functions
@@ -104,6 +104,9 @@ class DepthCamera :
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+        
+        if self.save_data:
+            self.data.save()
         
     
     def get_frame(self, 
@@ -370,7 +373,7 @@ class ColorStream:
 class CameraData:
     def __init__(self, 
                  data_dir=DATA_DIR):
-        self.results = []
+        self.data = []
         self.data_dir = data_dir
         self.data_template = {
             'color':
@@ -401,10 +404,10 @@ class CameraData:
         return self.cur_data
     
     def append(self, data):
-        self.results.append(data)
+        self.data.append(data)
     
     def get_data(self):
-        return self.results
+        return self.data
     
     def save_current(self):
         
@@ -422,7 +425,8 @@ class CameraData:
         self.i += 1
 
     def save(self):
-        pass
+        with open(os.path.join(self.data_directory, 'data'+'.txt', 'w')) as f:
+            f.write(str(self.data))
     
     def process(self):
         pass
@@ -431,4 +435,4 @@ class CameraData:
 if __name__ == '__main__':
     cam = DepthCamera(cam=0, thread_progress=False)
     cam.config(depth=False)
-    cam.run()
+    cam.run(verbose=True)

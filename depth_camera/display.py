@@ -27,16 +27,16 @@ class Frame(ctk.CTkFrame):
         self.img = img
 
 class Button(ctk.CTkButton):
-    def _init_(self, container,  **kwargs):
-        ctk.CTkButton._init_(self, container, **kwargs)
+    def init(self, container,  **kwargs):
+        ctk.CTkButton.init(self, container, **kwargs)
         self._config()
         
     def _config(self, text):
         self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
 
 class CheckBox(ctk.CTkCheckBox):
-    def _init_(self, container, **kwargs):
-        ctk.CTkCheckBox._init_(self, container, **kwargs)
+    def init(self, container, **kwargs):
+        ctk.CTkCheckBox.init(self, container, **kwargs)
         self._config()
     
     def _config(self):
@@ -133,6 +133,9 @@ class App():
         
         self.loop(verbose=verbose)
         self.window.mainloop()
+
+        if self.camera.save_data:
+            self.camera.data.save()
         
         self.close()
     
