@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from primesense import openni2
 from primesense import _openni2 as c_api
-import os, shutil, time, json
+import os, shutil, time, json, pickle
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator
 import threading
@@ -77,8 +77,8 @@ class DepthCamera :
         
         if self.thread_progress:
             self.thread.start()
-        else : 
-            self.loop(verbose=verbose)
+        
+        self.loop(verbose=verbose)
             
         self.close()
         
@@ -94,7 +94,7 @@ class DepthCamera :
     
     def loop(self, show=True, verbose=False):
         if self.save_data:
-            self.setup()
+            self.data.setup()
         
         while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
@@ -140,10 +140,7 @@ class DepthCamera :
         if verbose:
             print(self.cur_data)
 
-        self.data.append(self.cur_data)
-        
-        if self.save_data:
-            self.data.save_current()
+        self.data.append(self.cur_data, save=self.save_data)
         
         return self.depth_image, self.img_depth, self.color_image
     
@@ -366,7 +363,10 @@ class ColorStream:
 class CameraData:
     def __init__(self, 
                  data_dir=DATA_DIR):
-        self.data = []
+        self.data = {
+            'data':[],
+            'config':None
+        }
         self.data_dir = data_dir
         self.data_template = {
             'color':
@@ -377,8 +377,9 @@ class CameraData:
                  'image':None},
             'gripper_loc':None,
             'items_loc':{},
-            'config':None
         }
+        
+        self.i = 0
     
     def setup(self):
         t = time.localtime()
@@ -392,32 +393,31 @@ class CameraData:
         os.makedirs(os.path.join(self.data_directory, 'data'))
     
     def set_data(self):
-        self.i = 0
         self.cur_data = self.data_template
         self.results = None
         return self.cur_data
     
-    def append(self, data):
-        self.data.append(data)
-    
-    def save_current(self):
+    def append(self, data, save=False):
+        self.cur_data = data
+        self.data['data'].append(data)
         
-        with open(os.path.join(self.data_directory, 'data', f'data_{self.i}')+'.txt', 'w') as f:
-            f.write(str(self.cur_data))
+        if save :
+            with open(os.path.join(self.data_directory, 'data', f'data_{self.i}.txt'), 'wb') as f:
+                pickle.dump(data, f)
         
-        color_image = self.cur_data['color']['annot']
-        depth_image = self.cur_data['depth']['image']
+            color_image = data['color']['annot']
+            depth_image = data['depth']['image']
+            
+            if color_image is not None:
+                cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
+            if depth_image is not None:
+                cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
         
-        if color_image is not None:
-            cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
-        if depth_image is not None:
-            cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
-        
-        self.i += 1
+            self.i = self.i + 1
 
     def save(self):
-        with open(os.path.join(self.data_directory, 'data'+'.txt', 'w')) as f:
-            f.write(str(self.data))
+        with open(os.path.join(self.data_directory, 'data'+'.txt'), 'wb') as f:
+            pickle.dump(self.data, f)
     
     def cur_process(self):
         self.results = {
@@ -457,5 +457,5 @@ class CameraData:
                         
 if __name__ == '__main__':
     cam = DepthCamera(cam=0,)
-    cam.config()
-    cam.run(verbose=True)
+    cam.config(save_data=True)
+    cam.run()

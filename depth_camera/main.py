@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # 3. colormap        : True           | False (Default)
     # 4. save_data       : True           | False (Default)
 
-    cam.config()
+    cam.config(save_data=True)
     
     app = App(cam)
     app.run()

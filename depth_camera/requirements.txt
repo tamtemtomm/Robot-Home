@@ -3,3 +3,4 @@ primesense==2.2.0.30
 python-osc==1.8.3
 imutils==0.5.4
 ultralytics==8.1.2
+customtkinter==5.2.2
