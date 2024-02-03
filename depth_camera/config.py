@@ -2,7 +2,7 @@ import cv2
 
 YOLO_BBOX_MODEL_PATH   = ".//models//yolov8n.pt"
 YOLO_SEG_MODEL_PATH   = ".//models//yolov8n-seg.pt"
-YOLO_GRIPPER_MODEL_PATH   = ".//models//yolo-gripper.pt"
+YOLO_GRIPPER_MODEL_PATH   = ".//models//yolo8n-gripper.pt"
 YOLO_MODEL_CONFIG = ".//models//config.yaml"
 YOLO_SAM_MODEL_PATH = ".//models//sam_b.pt"
 ICON_PATH = ""

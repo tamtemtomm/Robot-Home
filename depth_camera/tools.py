@@ -151,13 +151,13 @@ class DepthCamera :
         except:
             model = None
         
-        # try:
-        #     gripper_model = YOLO(YOLO_GRIPPER_MODEL_PATH)
-        #     gripper_model = gripper_model.to(self.device)
-        # except:
-        #     gripper_model = None
+        try:
+            gripper_model = YOLO(YOLO_GRIPPER_MODEL_PATH)
+            gripper_model = gripper_model.to(self.device)
+        except:
+            gripper_model = None
         
-        gripper_model = None
+        # gripper_model = None
 
         return model, gripper_model
 
@@ -294,6 +294,7 @@ class ColorStream:
                 if r.boxes:
                     for box in r.boxes:
                         img = self._annotate_gripper_segment(img, box, img_depth)
+        return img
     
     def _annotate_segment(self, img, box, mask, annotator, img_depth) : 
         bbox = box.xyxy[0]
@@ -457,5 +458,5 @@ class CameraData:
                         
 if __name__ == '__main__':
     cam = DepthCamera(cam=0,)
-    cam.config(save_data=True)
-    cam.run()
+    cam.config()
+    cam.run(verbose=True)
