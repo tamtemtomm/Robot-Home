@@ -1,0 +1,10 @@
+path: /content
+train: images/train
+val: images/val
+
+# Classes
+names:
+  0: Wallet
+  1: Handphone
+  2: Spoon
+  3: Mouse
