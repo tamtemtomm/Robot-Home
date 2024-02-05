@@ -47,7 +47,7 @@
 // #define RAD 57.29577951
 
 const int GRIPPER_LIM[2] = {196,244};
-const int UPPER_LIM[2] = {181,287};
+const int UPPER_LIM[2] = {181,280};
 
 #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_MEGA2560)
 #include <SoftwareSerial.h>
@@ -94,8 +94,8 @@ void setup() {
   gripper_init();
   DEBUG_SERIAL.print("Init finished");
   
-  servo_degree(120, DXL_ID1);
-  servo_degree(UPPER_LIM[1], DXL_ID2);
+  servo_degree(190, DXL_ID1);
+  servo_degree(UPPER_LIM[0], DXL_ID2);
   servo_degree(GRIPPER_LIM[1], DXL_ID);
 }
 
@@ -117,7 +117,7 @@ void loop() {
         servoc = GRIPPER_LIM[1];
         break;
       default:
-        DEBUG_SERIAL.println("Not enough arg : "String(stsp->getItemCount()));
+        DEBUG_SERIAL.println("Not enough arg : " + String(stsp->getItemCount()));
         return;
     }
 
