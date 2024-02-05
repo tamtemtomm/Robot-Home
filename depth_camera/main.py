@@ -18,4 +18,4 @@ if __name__ == '__main__':
     cam.config()
     
     app = App(cam)
-    app.run()
+    app.run(verbose=True)

@@ -340,7 +340,7 @@ class ColorStream:
                                     'location':location}
         return img
         
-    def _add_square(img, box):
+    def _add_square(self, img, box):
         x1, y1, x2, y2 = box
         img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
         img - cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
