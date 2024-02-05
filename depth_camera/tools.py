@@ -28,13 +28,15 @@ class DepthCamera :
         if self.thread_progress:
             self.thread = threading.Thread(target=self.get_frame, daemon=True, args=(False,))
             
-        openni2.initialize(self.redist)
-        if openni2.Device.open_all() == []:
-            self.depth=False
-            self.depth_data=False
-        else :
-            self.depth=True
-            self.depth_data=True
+        # openni2.initialize(self.redist)
+        # if openni2.Device.open_all() == []:
+        #     self.depth=False
+        #     self.depth_data=False
+        # else :
+        #     self.depth=True
+        #     self.depth_data=True
+        
+        self.depth = False
         
         self.data = CameraData()
     
@@ -119,8 +121,10 @@ class DepthCamera :
                                                                 colormap=self.colormap,
                                                                 temporal_filter=self.temporal_filter,
                                                                 data = self.cur_data)
-            if show: 
-                cv2.imshow('Depth Image', self.depth_image)
+            
+            if self.depth_image is not None:
+                if show: 
+                    cv2.imshow('Depth Image', self.depth_image)
         
         else :
             self.depth_image = None
@@ -134,8 +138,9 @@ class DepthCamera :
                                                             gripper_model=self.gripper_model if self.gripper_model else None,
                                                             temporal_filter=self.temporal_filter,
                                                             data = self.cur_data)
-        if show: 
-            cv2.imshow("Color Image", self.color_image)
+        if self.color_image is not None:
+            if show: 
+                cv2.imshow("Color Image", self.color_image)
 
         if verbose:
             print(self.cur_data)
@@ -249,26 +254,30 @@ class ColorStream:
             self.prev_color_image = None
         
         _, color_image_raw = self.cap.read()
+
+        if color_image_raw is not None:
         
-        if data:
-            self.data['color']['raw'] = color_image_raw
+            if data:
+                self.data['color']['raw'] = color_image_raw
+                
+            if self.temporal_filter :
+                color_image_raw= self._temporal_filter(color_image_raw, self.prev_color_image)
+                self.prev_color_image = color_image_raw
             
-        if self.temporal_filter :
-            color_image_raw= self._temporal_filter(color_image_raw, self.prev_color_image)
-            self.prev_color_image = color_image_raw
-        
-        if model is not None:
-            self.model = model
-            color_image = self._yolo(color_image_raw, img_depth)
-        
-        if gripper_model is not None:
-            self.gripper_model = gripper_model
-            color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
-        
-        if data : 
-            self.data['color']['annot'] = color_image
-            return color_image, self.data
-        
+            if model is not None:
+                self.model = model
+                color_image = self._yolo(color_image_raw, img_depth)
+            
+            if gripper_model is not None:
+                self.gripper_model = gripper_model
+                color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
+            
+            if data : 
+                self.data['color']['annot'] = color_image
+                return color_image, self.data
+            
+        else : color_image = None
+            
         return color_image, None
     
     def close(self):
