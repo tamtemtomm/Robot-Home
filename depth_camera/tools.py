@@ -28,15 +28,15 @@ class DepthCamera :
         if self.thread_progress:
             self.thread = threading.Thread(target=self.get_frame, daemon=True, args=(False,))
             
-        # openni2.initialize(self.redist)
-        # if openni2.Device.open_all() == []:
-        #     self.depth=False
-        #     self.depth_data=False
-        # else :
-        #     self.depth=True
-        #     self.depth_data=True
+        openni2.initialize(self.redist)
+        if openni2.Device.open_all() == []:
+            self.depth=False
+            self.depth_data=False
+        else :
+            self.depth=True
+            self.depth_data=True
         
-        self.depth = False
+        # self.depth = False
         
         self.data = CameraData()
     
@@ -101,8 +101,11 @@ class DepthCamera :
         while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
             
+            print(self.data.cur_process())
+            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+                
         
         if self.save_data:
             self.data.save()
@@ -344,15 +347,17 @@ class ColorStream:
         depth_estimation = None
         
         location = (center[0], center[1], depth_estimation)
-        img = self._add_square(img, bbox)
+        img = self._add_square(img, bbox, center, location)
         self.data['gripper_loc'] = {'bbox':bbox,
                                     'location':location}
         return img
         
-    def _add_square(self, img, box):
+    def _add_square(self, img, box, center=None, location=None):
         x1, y1, x2, y2 = box
         img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
-        img - cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
+        img = cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
+                          0.4, (0, 0, 255), 1, DEFAULT_LINE)
+        img = cv2.putText(img, f'{location}', center, DEFAULT_FONT, 
                           0.4, (0, 0, 255), 1, DEFAULT_LINE)
         return img
 
@@ -446,26 +451,27 @@ class CameraData:
         if grip_loc is not None:
             for item in self.cur_data['items_loc']:
                 if item:
-                    for i in item:
-                        distance = self.euclidian_distance(grip_loc, i['location'])
+                    for i in self.cur_data['items_loc'][item]:
+                        distance = self.euclidian_distance(grip_loc[:2], i['location'][:2])
                         if distance < min_distance:
                             min_distance = distance
-                            min_location = i['location']
-                            min_target = grip_loc - i['location']
+                            min_location = i['location'][:2]
+                            min_target = (grip_loc[0] - i['location'][0], grip_loc[1] - i['location'][1])
         
         return {
-            'distance'  : min_distance,
-            'location'  : min_location,
-            'target'    : min_target
+            'grip_location'     : grip_loc,
+            'item_location'     : min_location,
+            'distance'          : min_distance,
+            'target'            : min_target
         }
     
     def euclidian_distance(self, arr_a, arr_b):
         sum = 0
-        for a, b in zip(arr_a, arr_b):
-            sum += np.power((a - b), 2)
-        return np.square(sum)
+        for a , b in zip(arr_a, arr_b):
+            sum += np.power((a-b), 2) 
+        return np.sqrt(sum)
                         
 if __name__ == '__main__':
-    cam = DepthCamera(cam=0,)
+    cam = DepthCamera(cam=1,)
     cam.config()
-    cam.run(verbose=True)
+    cam.run(verbose=False)
