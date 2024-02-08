@@ -11,18 +11,22 @@ import threading
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 from config import *
+from utils import _pixel_to_distance, _temporal_filter, _add_square, _add_border, euclidian_distance
 
 class DepthCamera :
     def __init__(self, 
                  cam = 1,
                  redist = REDIST_PATH,
                  data_dir = DATA_DIR,
-                 thread_progress=True):
+                 thread_progress=True,
+                 height=200):
         
         self.cam = cam
         self.redist = redist
         self.data_dir = data_dir
         self.device = device
+        self.focal_length = 60
+        self.height = height
         
         self.thread_progress = thread_progress
         if self.thread_progress:
@@ -101,11 +105,11 @@ class DepthCamera :
         while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
             
-            print(self.data.cur_process())
+            if self.cur_data['gripper_loc']:
+                print(self.data.cur_process())
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-                
         
         if self.save_data:
             self.data.save()
@@ -215,7 +219,7 @@ class DepthStream :
             depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
         
         if self.temporal_filter :
-            depth_image = self._temporal_filter(depth_image, self.prev_depth_image)
+            depth_image = _temporal_filter(depth_image, self.prev_depth_image)
             self.prev_depth_image = depth_image
            
         if data:
@@ -226,13 +230,6 @@ class DepthStream :
             return depth_image, img_depth, self.data
             
         return depth_image, img_depth, None
-    
-    def _temporal_filter(self, frame, prev_frame=None, alpha=0.5):
-        if prev_frame is None : 
-            return frame
-        else : 
-            result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
-            return result
     
     def close(self):
         openni2.unload()
@@ -264,7 +261,7 @@ class ColorStream:
                 self.data['color']['raw'] = color_image_raw
                 
             if self.temporal_filter :
-                color_image_raw= self._temporal_filter(color_image_raw, self.prev_color_image)
+                color_image_raw= _temporal_filter(color_image_raw, self.prev_color_image)
                 self.prev_color_image = color_image_raw
             
             if model is not None:
@@ -314,7 +311,7 @@ class ColorStream:
         border = mask.xy[0]
         
         annotator.box_label(bbox, class_name)
-        img = self._add_border(img, border)
+        img = _add_border(img, border)
         
         mask_segment = mask.data.to(device).numpy()
         mask_segment.shape = (480, 640)
@@ -347,37 +344,16 @@ class ColorStream:
         depth_estimation = None
         
         location = (center[0], center[1], depth_estimation)
-        img = self._add_square(img, bbox, center, location)
+        img = _add_square(img, bbox, center, location)
         self.data['gripper_loc'] = {'bbox':bbox,
                                     'location':location}
         return img
-        
-    def _add_square(self, img, box, center=None, location=None):
-        x1, y1, x2, y2 = box
-        img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
-        img = cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
-                          0.4, (0, 0, 255), 1, DEFAULT_LINE)
-        img = cv2.putText(img, f'{location}', center, DEFAULT_FONT, 
-                          0.4, (0, 0, 255), 1, DEFAULT_LINE)
-        return img
-
-    def _add_border(self, img, border):
-        for a, b in border:
-            img[int(b)-1, int(a)-1, 0] = 0
-            img[int(b)-1, int(a)-1, 1] = 0
-            img[int(b)-1, int(a)-1, 2] = 255
-        return img
-    
-    def _temporal_filter(self, frame, prev_frame=None, alpha=0.5):
-        if prev_frame is None : 
-            return frame
-        else : 
-            result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
-            return result
 
 class CameraData:
     def __init__(self, 
-                 data_dir=DATA_DIR):
+                 data_dir=DATA_DIR,
+                 convert_to_distance=True):
+        self.convert_to_distance = convert_to_distance
         self.data = {
             'data':[],
             'config':None
@@ -452,7 +428,7 @@ class CameraData:
             for item in self.cur_data['items_loc']:
                 if item:
                     for i in self.cur_data['items_loc'][item]:
-                        distance = self.euclidian_distance(grip_loc[:2], i['location'][:2])
+                        distance = euclidian_distance(grip_loc[:2], i['location'][:2])
                         if distance < min_distance:
                             min_distance = distance
                             min_location = i['location'][:2]
@@ -464,14 +440,8 @@ class CameraData:
             'distance'          : min_distance,
             'target'            : min_target
         }
-    
-    def euclidian_distance(self, arr_a, arr_b):
-        sum = 0
-        for a , b in zip(arr_a, arr_b):
-            sum += np.power((a-b), 2) 
-        return np.sqrt(sum)
                         
 if __name__ == '__main__':
-    cam = DepthCamera(cam=1,)
+    cam = DepthCamera(cam=0,)
     cam.config()
     cam.run(verbose=False)

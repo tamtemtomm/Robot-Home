@@ -1,0 +1,52 @@
+import cv2
+import numpy as np
+from PIL import Image
+import customtkinter as ctk
+from config import *
+
+def _temporal_filter(frame, prev_frame=None, alpha=0.5):
+    if prev_frame is None : 
+        return frame
+    else : 
+        result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
+        return result
+
+def _pixel_to_distance(pixel, depth, focal_length):
+    return pixel*depth/focal_length
+
+def _distance_to_pixel(distance, depth, focal_length):
+    return focal_length*distance/depth
+
+def _convert_to_pil(img, length, width, depth=False):
+    if depth:
+        img = Image.fromarray(img)
+        img = ctk.CTkImage(img, size=(length, width))
+        
+    else : 
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(img)
+        img = ctk.CTkImage(img, size=(length, width))
+    
+    return img
+
+def _add_square(img, box, center=None, location=None):
+    x1, y1, x2, y2 = box
+    img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
+    img = cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
+                        0.4, (0, 0, 255), 1, DEFAULT_LINE)
+    img = cv2.putText(img, f'{location}', center, DEFAULT_FONT, 
+                        0.4, (0, 0, 255), 1, DEFAULT_LINE)
+    return img
+
+def _add_border(img, border):
+    for a, b in border:
+        img[int(b)-1, int(a)-1, 0] = 0
+        img[int(b)-1, int(a)-1, 1] = 0
+        img[int(b)-1, int(a)-1, 2] = 255
+    return img
+
+def euclidian_distance(arr_a, arr_b):
+    sum = 0
+    for a , b in zip(arr_a, arr_b):
+        sum += np.power((a-b), 2) 
+    return np.sqrt(sum)
