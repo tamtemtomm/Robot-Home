@@ -11,7 +11,7 @@ def _temporal_filter(frame, prev_frame=None, alpha=0.5):
         result = cv2.addWeighted(frame, alpha, prev_frame, 1-alpha, 0)
         return result
 
-def _pixel_to_distance(pixel, depth, focal_length):
+def _pixel_to_distance(pixel, depth=DEPTH, focal_length=FOCAL_LENGTH):
     return pixel*depth/focal_length
 
 def _distance_to_pixel(distance, depth, focal_length):
@@ -28,6 +28,12 @@ def _convert_to_pil(img, length, width, depth=False):
         img = ctk.CTkImage(img, size=(length, width))
     
     return img
+
+def _to_bbox(bbox):
+    box = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+    center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
+    
+    return box, center
 
 def _add_square(img, box, center=None, location=None):
     x1, y1, x2, y2 = box

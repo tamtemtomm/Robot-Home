@@ -6,12 +6,13 @@ from primesense import _openni2 as c_api
 import os, shutil, time, json, pickle
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator
+from pyzbar import pyzbar
 import threading
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 from config import *
-from utils import _pixel_to_distance, _temporal_filter, _add_square, _add_border, euclidian_distance
+from utils import _pixel_to_distance, _temporal_filter, _add_square, _add_border, euclidian_distance, _to_bbox
 
 class DepthCamera :
     def __init__(self, 
@@ -235,9 +236,12 @@ class DepthStream :
         openni2.unload()
 
 class ColorStream:
-    def __init__(self, cam):
+    def __init__(self, cam,
+                 barcode=True,
+                 ):
         self.cap = cv2.VideoCapture(cam)
-            
+        self.barcode_auth = 'hahahaha' if barcode else None 
+        
     def get_frame(self, 
                   img_depth=None, 
                   model=None, 
@@ -271,6 +275,9 @@ class ColorStream:
             if gripper_model is not None:
                 self.gripper_model = gripper_model
                 color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
+            
+            if self.barcode_auth is not None:
+                color_image = self._annotate_barcode_segment(color_image, color_image_raw, img_depth)
             
             if data : 
                 self.data['color']['annot'] = color_image
@@ -349,6 +356,34 @@ class ColorStream:
                                     'location':location}
         return img
 
+    def _annotate_barcode_segment(self, img, img_raw, img_depth=None):
+        result_image = None
+        depth_estimation = None
+        
+        for barcode in pyzbar.decode(img_raw):
+            if barcode :
+                barcode_data = barcode.data.decode('utf-8')
+                if barcode_data == self.barcode_auth:
+                    x1, y1, w, h  = barcode.rect
+                    x2, y2 = x1 + w, y1 + h
+                    
+                    box = (x1, y1, x2, y2)
+                    bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+                    center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
+                    location = (center[0], center[1], depth_estimation)
+                    
+                    img = _add_square(img, box, center, location)
+                    
+                    self.data['barcode_loc'] = {'bbox':bbox,
+                                                'location':location,
+                                                'data': barcode_data}
+                    
+                    break
+                else :
+                    continue
+        
+        return img
+        
 class CameraData:
     def __init__(self, 
                  data_dir=DATA_DIR,
@@ -367,6 +402,7 @@ class CameraData:
                 {'raw':None,
                  'image':None},
             'gripper_loc':None,
+            'barcode_loc':None,
             'items_loc':{},
         }
         
@@ -393,18 +429,21 @@ class CameraData:
         self.data['data'].append(data)
         
         if save :
-            with open(os.path.join(self.data_directory, 'data', f'data_{self.i}.txt'), 'wb') as f:
-                pickle.dump(data, f)
+            self.save_cur(data)
+    
+    def save_cur(self, data):
+        with open(os.path.join(self.data_directory, 'data', f'data_{self.i}.txt'), 'wb') as f:
+            pickle.dump(data, f)
         
-            color_image = data['color']['annot']
-            depth_image = data['depth']['image']
-            
-            if color_image is not None:
-                cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
-            if depth_image is not None:
-                cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
+        color_image = data['color']['annot']
+        depth_image = data['depth']['image']
         
-            self.i = self.i + 1
+        if color_image is not None:
+            cv2.imwrite(os.path.join(self.data_directory, 'color', f'color_{self.i}')+'.jpg', color_image)
+        if depth_image is not None:
+            cv2.imwrite(os.path.join(self.data_directory, 'depth', f'depth_{self.i}')+'.jpg', depth_image)
+    
+        self.i = self.i + 1
 
     def save(self):
         with open(os.path.join(self.data_directory, 'data'+'.txt'), 'wb') as f:
@@ -412,15 +451,16 @@ class CameraData:
     
     def cur_process(self):
         self.results = {
-            'min': self.get_min_distance()
+            'min'           : self.get_min_distance(),
+            'orientation'   : self.get_barcode_orientation(),
         }
-        
         return self.results
     
     def get_min_distance(self):
         min_distance = 9999999
         min_location = None
         min_target = None
+        result = None
         
         grip_loc = self.cur_data['gripper_loc']['location']
         
@@ -430,16 +470,31 @@ class CameraData:
                     for i in self.cur_data['items_loc'][item]:
                         distance = euclidian_distance(grip_loc[:2], i['location'][:2])
                         if distance < min_distance:
-                            min_distance = distance
+                            min_distance = _pixel_to_distance(distance) if self.convert_to_distance else distance
                             min_location = i['location'][:2]
                             min_target = (grip_loc[0] - i['location'][0], grip_loc[1] - i['location'][1])
         
-        return {
-            'grip_location'     : grip_loc,
-            'item_location'     : min_location,
-            'distance'          : min_distance,
-            'target'            : min_target
-        }
+                        result = {
+                            'grip_location'     : grip_loc,
+                            'item_location'     : min_location,
+                            'distance'          : min_distance,
+                            'target'            : min_target
+                        }
+        
+        return result
+    
+    def get_barcode_orientation(self):
+        orientation = None
+        
+        if self.cur_data['gripper_loc'] is not None and self.cur_data['barcode_loc'] is not None:
+            grip_loc = self.cur_data['gripper_loc']['location']
+            barcode_loc = self.cur_data['barcode_loc']['location']
+            
+            y, x = np.abs(grip_loc[1] - barcode_loc[1])/np.abs(grip_loc[0] - barcode_loc[0])
+            orientation = np.arctan(y/x)*180/np.pi
+            orientation = orientation if (barcode_loc[0] - grip_loc[0] >= 0) else (180 - orientation)
+
+        return orientation
                         
 if __name__ == '__main__':
     cam = DepthCamera(cam=0,)

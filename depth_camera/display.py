@@ -1,6 +1,4 @@
 import customtkinter as ctk
-import cv2
-from PIL import Image
 from config import *
 from tools import DepthCamera
 from utils import _convert_to_pil
