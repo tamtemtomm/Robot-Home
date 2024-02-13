@@ -1,7 +1,7 @@
 from config import *
 import os, time, pickle
 import numpy as np
-from utils import euclidian_distance, _pixel_to_distance
+from utils import _euclidian_distance, _pixel_to_distance
 
 class CameraData:
     def __init__(self, 
@@ -87,7 +87,7 @@ class CameraData:
             for item in self.cur_data['items_loc']:
                 if item:
                     for i in self.cur_data['items_loc'][item]:
-                        distance = euclidian_distance(grip_loc[:2], i['location'][:2])
+                        distance = _euclidian_distance(grip_loc[:2], i['location'][:2])
                         if distance < min_distance:
                             min_distance = _pixel_to_distance(distance) if self.convert_to_distance else distance
                             min_location = i['location'][:2]

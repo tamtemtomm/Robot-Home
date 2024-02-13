@@ -6,15 +6,26 @@ import numpy as np
 import torch
 from ultralytics.utils.plotting import Annotator
 from pyzbar import pyzbar
+# from inference_sdk import InferenceHTTPClient
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class ColorStream:
     def __init__(self, cam,
                  barcode=True,
                  ):
+        
         self.cap = cv2.VideoCapture(cam)
         self.barcode_auth = 'hahahaha' if barcode else None 
         
+        # try : 
+        #     self.CLIENT = InferenceHTTPClient(
+        #         api_url="https://detect.roboflow.com",
+        #         api_key="1UnUQCCfSuu44HS6CrHe"
+        #     )
+        
+        # except : 
+        #     self.CLIENT = None
+            
     def get_frame(self, 
                   img_depth=None, 
                   model=None, 
@@ -139,6 +150,33 @@ class ColorStream:
                 barcode_data = barcode.data.decode('utf-8')
                 if barcode_data is not None:
                     x1, y1, w, h  = barcode.rect
+                    x2, y2 = x1 + w, y1 + h
+                    
+                    box = (x1, y1, x2, y2)
+                    bbox = [int(box[0]), int(box[1]), int(box[2]), int(box[3])]
+                    center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
+                    location = (center[0], center[1], depth_estimation)
+                    
+                    img = _add_square(img, box, center, location, 'BARCODE')
+                    
+                    self.data['barcode_loc'] = {'bbox':bbox,
+                                                'location':location,
+                                                'data': barcode_data}
+                    
+                    break
+                else :
+                    continue
+        
+        return img
+    
+    def _annotate_barcode_segment2(self, img, img_raw, img_depth=None):
+        depth_estimation = None
+    
+        for barcode in self.CLIENT.infer(img_raw, model_id="barcodes-zmxjq/4")['predictions']:
+            if barcode :
+                barcode_data = barcode['detection_id']
+                if barcode_data is not None:
+                    x1, y1, w, h  = barcode['x'], barcode['y'], barcode['width'], barcode['height']
                     x2, y2 = x1 + w, y1 + h
                     
                     box = (x1, y1, x2, y2)

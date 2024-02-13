@@ -61,7 +61,7 @@ class DepthCamera :
         ##---------------------------------------------------------------------------------------------------------
         # YOLO MODEL INITIALISATION
         
-        self.model, self.gripper_model = self._model()
+        self.model, self.gripper_model, self.barcode_model = self._model()
         
         ##---------------------------------------------------------------------------------------------------------
         # DEPTH STREAM INITIALITATION
@@ -166,9 +166,13 @@ class DepthCamera :
         except:
             gripper_model = None
         
-        # gripper_model = None
+        try:
+            barcode_model = YOLO(YOLO_BARCODE_MODEL_PATH)
+            barcode_model = barcode_model.to(self.device)
+        except:
+            barcode_model = None
 
-        return model, gripper_model
+        return model, gripper_model, barcode_model
 
     def _check_params( self,
             yolo,
