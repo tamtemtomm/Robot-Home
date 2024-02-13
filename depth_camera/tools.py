@@ -136,10 +136,12 @@ class DepthCamera :
             
         ##----------------------------------------------------------------------------------------------------
         # GET COLOR FRAME       
+
         self.color_image, self.cur_data = self.color_stream.get_frame(
                                                             img_depth=self.img_depth, 
                                                             model=self.model if self.model else None,
                                                             gripper_model=self.gripper_model if self.gripper_model else None,
+                                                            barcode_model=self.barcode_model,
                                                             temporal_filter=self.temporal_filter,
                                                             data = self.cur_data)
         if self.color_image is not None:
@@ -167,7 +169,7 @@ class DepthCamera :
             gripper_model = None
         
         try:
-            barcode_model = YOLO(YOLO_BARCODE_MODEL_PATH)
+            barcode_model = YOLO(YOLO_GRIPPER_MODEL_PATH)
             barcode_model = barcode_model.to(self.device)
         except:
             barcode_model = None

@@ -6,6 +6,7 @@ YOLO_GRIPPER_MODEL_PATH   = ".//models//yolo8n-gripper.pt"
 YOLO_MODEL_CONFIG = ".//models//config.yaml"
 YOLO_SAM_MODEL_PATH = ".//models//sam_b.pt"
 YOLO_BARCODE_MODEL_PATH = ".//models//yolo8n-barcode.pt"
+YOLO_BARCODE_MODEL_PATH2 = ".//models//yolo5n-barcode.pt"
 ICON_PATH = ""
 
 REDIST_PATH = './/Redist//'

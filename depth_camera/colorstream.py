@@ -30,6 +30,7 @@ class ColorStream:
                   img_depth=None, 
                   model=None, 
                   gripper_model=None,
+                  barcode_model=None,
                   temporal_filter=False,
                   data = None
                 ):
@@ -61,6 +62,7 @@ class ColorStream:
                 color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
             
             if self.barcode_auth is not None:
+                self.barcode_model = barcode_model
                 color_image = self._annotate_barcode_segment(color_image, color_image_raw, img_depth)
             
             if data : 
@@ -93,6 +95,16 @@ class ColorStream:
                 if r.boxes:
                     for box in r.boxes:
                         img = self._annotate_gripper_segment(img, box, img_depth)
+        return img
+    
+    def _yolo_barcode(self, img, img_raw, img_depth):
+        results = self.gripper_model.predict(img_raw, verbose=False)
+        if results:
+            for r in results:
+                print(r.boxes)
+                if r.boxes:
+                    for box in r.boxes:
+                        img = self._annotate_barcode_segment2(img, box, img_depth)
         return img
     
     def _annotate_segment(self, img, box, mask, annotator, img_depth) : 
@@ -141,12 +153,9 @@ class ColorStream:
 
     def _annotate_barcode_segment(self, img, img_raw, img_depth=None):
         depth_estimation = None
-        
-        
+    
         for barcode in pyzbar.decode(img_raw):
             if barcode :
-                print('Hahaha')
-                
                 barcode_data = barcode.data.decode('utf-8')
                 if barcode_data is not None:
                     x1, y1, w, h  = barcode.rect
@@ -169,29 +178,14 @@ class ColorStream:
         
         return img
     
-    def _annotate_barcode_segment2(self, img, img_raw, img_depth=None):
+    def _annotate_barcode_segment2(self, img, box, img_depth=None):
+        bbox = box.xyxy[0]
+        bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+        center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
         depth_estimation = None
-    
-        for barcode in self.CLIENT.infer(img_raw, model_id="barcodes-zmxjq/4")['predictions']:
-            if barcode :
-                barcode_data = barcode['detection_id']
-                if barcode_data is not None:
-                    x1, y1, w, h  = barcode['x'], barcode['y'], barcode['width'], barcode['height']
-                    x2, y2 = x1 + w, y1 + h
-                    
-                    box = (x1, y1, x2, y2)
-                    bbox = [int(box[0]), int(box[1]), int(box[2]), int(box[3])]
-                    center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
-                    location = (center[0], center[1], depth_estimation)
-                    
-                    img = _add_square(img, box, center, location, 'BARCODE')
-                    
-                    self.data['barcode_loc'] = {'bbox':bbox,
-                                                'location':location,
-                                                'data': barcode_data}
-                    
-                    break
-                else :
-                    continue
         
+        location = (center[0], center[1], depth_estimation)
+        img = _add_square(img, bbox, center, location, 'BARCODE')
+        self.data['barcode_loc'] = {'bbox':bbox,
+                                    'location':location}
         return img
