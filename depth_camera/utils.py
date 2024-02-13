@@ -35,13 +35,15 @@ def _to_bbox(bbox):
     
     return box, center
 
-def _add_square(img, box, center=None, location=None):
+def _add_square(img, box, center=None, location=None, text = None):
     x1, y1, x2, y2 = box
     img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
-    img = cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 
-                        0.4, (0, 0, 255), 1, DEFAULT_LINE)
-    img = cv2.putText(img, f'{location}', center, DEFAULT_FONT, 
-                        0.4, (0, 0, 255), 1, DEFAULT_LINE)
+    if text is not None:
+        img = cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 0.4, (0, 0, 255), 1, DEFAULT_LINE)
+    
+    if location is not None and center is not None:
+        img = cv2.putText(img, f'{location}', center, DEFAULT_FONT, 
+                            0.4, (0, 0, 255), 1, DEFAULT_LINE)
     return img
 
 def _add_border(img, border):

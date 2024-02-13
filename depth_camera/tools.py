@@ -102,8 +102,8 @@ class DepthCamera :
         while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
             
-            if self.cur_data['gripper_loc']:
-                print(self.data.cur_process())
+            # if self.cur_data['gripper_loc']:
+            #     print(self.data.cur_process())
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -195,4 +195,4 @@ class DepthCamera :
 if __name__ == '__main__':
     cam = DepthCamera(cam=0,)
     cam.config()
-    cam.run(verbose=True)
+    cam.run(verbose=False)

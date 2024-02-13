@@ -1,9 +1,10 @@
+from config import *
+from utils import _temporal_filter, _add_border, _add_square
+
 import cv2
 import numpy as np
 import torch
 from ultralytics.utils.plotting import Annotator
-from config import *
-from utils import _temporal_filter, _add_border, _add_square
 from pyzbar import pyzbar
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -115,14 +116,14 @@ class ColorStream:
         
         return img, annotator
     
-    def _annotate_gripper_segment(self, img, box, img_depth):
+    def _annotate_gripper_segment(self, img, box, img_depth=None):
         bbox = box.xyxy[0]
         bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
         center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
         depth_estimation = None
         
         location = (center[0], center[1], depth_estimation)
-        img = _add_square(img, bbox, center, location)
+        img = _add_square(img, bbox, center, location, 'GRIPPER')
         self.data['gripper_loc'] = {'bbox':bbox,
                                     'location':location}
         return img
@@ -130,8 +131,11 @@ class ColorStream:
     def _annotate_barcode_segment(self, img, img_raw, img_depth=None):
         depth_estimation = None
         
+        
         for barcode in pyzbar.decode(img_raw):
             if barcode :
+                print('Hahaha')
+                
                 barcode_data = barcode.data.decode('utf-8')
                 if barcode_data is not None:
                     x1, y1, w, h  = barcode.rect
@@ -142,7 +146,7 @@ class ColorStream:
                     center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
                     location = (center[0], center[1], depth_estimation)
                     
-                    img = _add_square(img, box, center, location)
+                    img = _add_square(img, box, center, location, 'BARCODE')
                     
                     self.data['barcode_loc'] = {'bbox':bbox,
                                                 'location':location,
