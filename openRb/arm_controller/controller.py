@@ -32,25 +32,36 @@ class ARM_ROBOT:
             return None
         
     def inverse_kinematics(self, x=0, y=0, z=0):
-        length = math.sqrt(math.pow(x,2) + math.pow(z,2))
+        theta1 = None
+        theta2 = None
 
-        p = x-138.113
-        q = y-92
+        a1 = 99.00
+        a2 = 138.113
 
-        theta0 = math.atan2(z,x)
-        theta1 = 1.5708 + math.atan2(q,p)
-        theta2 = math.pi - theta1
+        a = math.pow(x,2) + math.pow(y,2)
+        a = math.sqrt(a)
 
-        theta0 = theta0 * (180/math.pi)
-        theta1 = theta1 * (180/math.pi)
-        theta2 = theta2 * (180/math.pi)
+        theta1 =  math.atan2(y,x)
+        ai = a-a2
+        
+        theta2 = (math.pow(z,2) + math.pow(ai,2) + math.pow(a1,2)) / (2*z*a1)
 
-        theta0 = 360+theta0 if theta0<0 else theta0
+        theta1 *= (180/math.pi)
+        theta2 *= (180/math.pi)
+
         theta1 = 360+theta1 if theta1<0 else theta1
         theta2 = 360+theta2 if theta2<0 else theta2
+        theta2 = 280-theta2
+        theta2 = theta2 if theta2 >=181 else 181
 
-        return [theta0, theta1, theta2]
+        return [theta1, theta2]
     
     def close(self):
         self.ser.close()
+
+
+get_port()
+if __name__ == "__main__":
+    robot = ARM_ROBOT()
+    print(robot.inverse_kinematics(25,27,44))
     
