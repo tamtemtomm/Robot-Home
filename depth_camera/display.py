@@ -1,8 +1,7 @@
 import customtkinter as ctk
-import cv2
-from PIL import Image
 from config import *
 from tools import DepthCamera
+from utils import _convert_to_pil
 
 class Frame(ctk.CTkFrame):
     def __init__(self, container, text, side='left'):
@@ -142,11 +141,13 @@ class App():
     def loop(self, verbose=False):
         depth_img, _, color_img = self.camera.get_frame(show=False, verbose=verbose)
         
-        color_img =  self._convert_to_pil(color_img)
+        color_img =  _convert_to_pil(color_img, self.config_size['im_size'][0], 
+                                     self.config_size['im_size'][1])
         self.color_frame_display.img_update(color_img)
     
         if self.camera.depth:
-            depth_img =  self._convert_to_pil(depth_img)
+            depth_img =  _convert_to_pil(depth_img, self.config_size['im_size'][0], 
+                                         self.config_size['im_size'][1])
             self.depth_frame_display.img_update(depth_img)
         
         if self.isrun:
@@ -155,18 +156,6 @@ class App():
     def close(self):
         self.isrun = False
         self.camera.close()
-    
-    def _convert_to_pil(self, img, depth=False):
-        if depth:
-            img = Image.fromarray(img)
-            img = ctk.CTkImage(img, size=(self.config_size['im_size'][0], self.config_size['im_size'][1]))
-            
-        else : 
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(img)
-            img = ctk.CTkImage(img, size=(self.config_size['im_size'][0], self.config_size['im_size'][1]))
-        
-        return img
 
 if __name__ == '__main__':
     camera = DepthCamera(cam=0, thread_progress=True)
