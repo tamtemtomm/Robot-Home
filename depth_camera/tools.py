@@ -73,7 +73,7 @@ class DepthCamera :
         
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
-        self.color_stream = ColorStream(cam=self.cam)
+        self.color_stream = ColorStream()
         
     def run(self, verbose=False):
         
@@ -141,6 +141,8 @@ class DepthCamera :
                                                             gripper_model=self.gripper_model if self.gripper_model else None,
                                                             temporal_filter=self.temporal_filter,
                                                             data = self.cur_data)
+        
+        # print(self.color_image  )
         if self.color_image is not None:
             if show: 
                 cv2.imshow("Color Image", self.color_image)
@@ -238,8 +240,8 @@ class DepthStream :
         openni2.unload()
 
 class ColorStream:
-    def __init__(self, cam):
-        self.cap = cv2.VideoCapture(cam)
+    def __init__(self):
+        self.cap = cv2.VideoCapture(0)
             
     def get_frame(self, 
                   img_depth=None, 
@@ -259,7 +261,7 @@ class ColorStream:
         _, color_image_raw = self.cap.read()
 
         if color_image_raw is not None:
-        
+
             if data:
                 self.data['color']['raw'] = color_image_raw
                 
@@ -269,10 +271,11 @@ class ColorStream:
             
             if model is not None:
                 self.model = model
-                color_image = self._yolo(color_image_raw, img_depth)
+                color_image = self._yolo(color_image_raw, img_depth)    
+
             
             if gripper_model is not None:
-                self.gripper_model = gripper_model
+                self.gripper_model = gripper_model        
                 color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
             
             if data : 
@@ -280,6 +283,8 @@ class ColorStream:
                 return color_image, self.data
             
         else : color_image = None
+
+            # print(color_image)
             
         return color_image, None
     
@@ -316,7 +321,7 @@ class ColorStream:
         annotator.box_label(bbox, class_name)
         img = self._add_border(img, border)
         
-        mask_segment = mask.data.to(device).numpy()
+        mask_segment = mask.data.cpu().numpy()
         mask_segment.shape = (480, 640)
 
         # img = self._add_distance_estimation(img, mask, img_depth, bbox)
@@ -334,7 +339,7 @@ class ColorStream:
                 0.4, (0, 0, 255), 1, DEFAULT_LINE)
         
         self.data['items_loc'][class_name] = []
-        self.data['items_loc'][class_name].append({'bbox':bbox.numpy(), 
+        self.data['items_loc'][class_name].append({'bbox':bbox.cpu().numpy(), 
                                                    'location':location, 
                                                    'mask':mask_segment})
         
