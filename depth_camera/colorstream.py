@@ -128,7 +128,7 @@ class ColorStream:
                 0.4, (0, 0, 255), 1, DEFAULT_LINE)
         
         self.data['items_loc'][class_name] = []
-        self.data['items_loc'][class_name].append({'bbox':bbox.numpy(), 
+        self.data['items_loc'][class_name].append({'bbox':bbox.cpu().numpy(), 
                                                    'location':location, 
                                                    'mask':mask_segment})
         
