@@ -1,15 +1,15 @@
 import cv2
 
-YOLO_BBOX_MODEL_PATH   = ".//models//yolov8n.pt"
-YOLO_SEG_MODEL_PATH   = ".//models//yolov8n-seg.pt"
-YOLO_GRIPPER_MODEL_PATH   = ".//models//yolo8n-gripper.pt"
-YOLO_MODEL_CONFIG = ".//models//config.yaml"
-YOLO_SAM_MODEL_PATH = ".//models//sam_b.pt"
-YOLO_BARCODE_MODEL_PATH = ".//models//yolo8n-barcode.pt"
-YOLO_BARCODE_MODEL_PATH2 = ".//models//yolo5n-barcode.pt"
+YOLO_BBOX_MODEL_PATH   = "depth_camera//models//yolov8n.pt"
+YOLO_SEG_MODEL_PATH   = "depth_camera//models//yolov8n-seg.pt"
+YOLO_GRIPPER_MODEL_PATH   = "depth_camera//models//yolo8n-gripper.pt"
+YOLO_MODEL_CONFIG = "depth_camera//models//config.yaml"
+YOLO_SAM_MODEL_PATH = "depth_camera//models//sam_b.pt"
+YOLO_BARCODE_MODEL_PATH = "depth_camera//models//yolo8n-barcode.pt"
+YOLO_BARCODE_MODEL_PATH2 = "depth_camera//models//yolo5n-barcode.pt"
 ICON_PATH = ""
 
-REDIST_PATH = './/Redist//'
+REDIST_PATH = 'depth_camera//Redist//'
 DATA_DIR = 'data'
 FOCAL_LENGTH = 70
 DEPTH = 200

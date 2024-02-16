@@ -1,7 +1,7 @@
 import customtkinter as ctk
-from config import *
-from tools import DepthCamera
-from utils import _convert_to_pil
+from depth_camera.config import *
+from depth_camera.tools import DepthCamera
+from depth_camera.utils import _convert_to_pil
 
 class Frame(ctk.CTkFrame):
     def __init__(self, container, text, side='left'):
@@ -45,6 +45,7 @@ class CheckBox(ctk.CTkCheckBox):
 class App():
     def __init__(self, 
                  camera,
+                 robot=None,
                  title='Orbecc Camera GUI', 
                  size=None, 
                  icon=ICON_PATH):
@@ -74,6 +75,9 @@ class App():
         
         if self.camera.thread_progress:
             self.camera.thread.start()
+        
+        if robot is not None:
+            self.camera.robot = robot
         
         self.__setup()
         

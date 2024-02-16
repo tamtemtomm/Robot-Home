@@ -1,6 +1,6 @@
-from tools import DepthCamera
-from config import *
-from display import App
+from depth_camera.tools import DepthCamera
+from depth_camera.config import *
+from depth_camera.display import App
 
 if __name__ == '__main__':
 
@@ -15,7 +15,5 @@ if __name__ == '__main__':
     # 3. colormap        : True           | False (Default)
     # 4. save_data       : True           | False (Default)
 
-    cam.config()
-    
     app = App(cam)
-    app.run(verbose=True)
+    app.run(verbose=False)

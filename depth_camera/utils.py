@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import customtkinter as ctk
-from config import *
+from depth_camera.config import *
 
 def _temporal_filter(frame, prev_frame=None, alpha=0.5):
     if prev_frame is None : 
@@ -39,7 +39,7 @@ def _add_square(img, box, center=None, location=None, text = None):
     x1, y1, x2, y2 = box
     img = cv2.rectangle(img, (x1, y1), (x2, y2), DEFAULT_COLOR, 2)
     if text is not None:
-        img = cv2.putText(img, f'GRIPPER', (x1, y1), DEFAULT_FONT, 0.4, (0, 0, 255), 1, DEFAULT_LINE)
+        img = cv2.putText(img, f'{text}', (x1, y1), DEFAULT_FONT, 0.4, (0, 0, 255), 1, DEFAULT_LINE)
     
     if location is not None and center is not None:
         img = cv2.putText(img, f'{location}', center, DEFAULT_FONT, 
@@ -53,7 +53,11 @@ def _add_border(img, border):
         img[int(b)-1, int(a)-1, 2] = 255
     return img
 
-def euclidian_distance(arr_a, arr_b):
+def _add_line(img, point1, point2):
+    point1, point2 = int(point1), int(point2)
+    return cv2.line(img, point1, point2, DEFAULT_COLOR, 1)
+
+def _euclidian_distance(arr_a, arr_b):
     sum = 0
     for a , b in zip(arr_a, arr_b):
         sum += np.power((a-b), 2) 

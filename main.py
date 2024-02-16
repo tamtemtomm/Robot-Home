@@ -4,10 +4,12 @@ from openRb.arm_controller.controller import ARM_ROBOT
 
 
 if __name__ == '__main__':
-    cam = DepthCamera(cam=0)
-    cam.config()
-        
-    app = App(cam)
     
-    while True:
-        
+    robot = ARM_ROBOT()
+    
+    cam = DepthCamera(
+        cam=0,
+        bracket_theta=30)
+    
+    app = App(cam, robot=robot)
+    app.run(verbose=False)

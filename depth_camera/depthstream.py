@@ -2,7 +2,7 @@ from primesense import openni2
 from primesense import _openni2 as c_api
 import numpy as np
 import cv2
-from utils import _temporal_filter
+from depth_camera.utils import _temporal_filter
 
 class DepthStream :
     def __init__(self, redist, width, height, fps):

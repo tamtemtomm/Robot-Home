@@ -1,5 +1,5 @@
-from config import *
-from utils import _temporal_filter, _add_border, _add_square
+from depth_camera.config import *
+from depth_camera.utils import _temporal_filter, _add_border, _add_square
 
 import cv2
 import numpy as np
@@ -124,7 +124,7 @@ class ColorStream:
             depth_estimation = int(np.sum(depth_mask)/np.sum(mask_segment)/10)
         else :
             mask_segment = None
-            depth_estimation = 0
+            depth_estimation = 100
 
         center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
         location = (center[0], center[1], depth_estimation)

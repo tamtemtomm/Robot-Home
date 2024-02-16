@@ -1,13 +1,15 @@
-from config import *
+from depth_camera.config import *
 import os, time, pickle
 import numpy as np
-from utils import _euclidian_distance, _pixel_to_distance
+from depth_camera.utils import _euclidian_distance, _pixel_to_distance
 
 class CameraData:
     def __init__(self, 
                  data_dir=DATA_DIR,
-                 convert_to_distance=True):
+                 convert_to_distance=True,
+                 bracket_theta = 30):
         self.convert_to_distance = convert_to_distance
+        self.bracket_theta = bracket_theta
         self.data = {
             'data':[],
             'config':None
@@ -79,18 +81,25 @@ class CameraData:
         min_distance = 9999999
         min_location = None
         min_target = None
-        result = None
+        result = {
+            'grip_location'     : None,
+            'item_location'     : None,
+            'distance'          : None,
+            'target'            : None,
+        }
+        try : 
+            grip_loc = self.cur_data['gripper_loc']['location']
+        except :
+            grip_loc = [0, 0, 0]
         
-        grip_loc = self.cur_data['gripper_loc']['location']
-        
-        if grip_loc is not None:
-            for item in self.cur_data['items_loc']:
-                if item:
+        for item in self.cur_data['items_loc']:
+            if item:
+                if grip_loc is not None:
                     for i in self.cur_data['items_loc'][item]:
-                        distance = _euclidian_distance(grip_loc[:2], i['location'][:2])
+                        distance = _euclidian_distance(grip_loc, i['location'])
                         if distance < min_distance:
                             min_distance = _pixel_to_distance(distance) if self.convert_to_distance else distance
-                            min_location = i['location'][:2]
+                            min_location = i['location']
                             min_target = (grip_loc[0] - i['location'][0], grip_loc[1] - i['location'][1])
         
                         result = {
@@ -98,7 +107,7 @@ class CameraData:
                             'item_location'     : min_location,
                             'distance'          : min_distance,
                             'target'            : min_target
-                        }
+                            }
         
         return result
     

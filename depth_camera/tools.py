@@ -1,7 +1,7 @@
-from config import *
-from  colorstream import ColorStream
-from depthstream import DepthStream
-from cameradata import CameraData
+from depth_camera.config import *
+from depth_camera.colorstream import ColorStream
+from depth_camera.depthstream import DepthStream
+from depth_camera.cameradata import CameraData
 
 import cv2
 import torch
@@ -12,18 +12,33 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class DepthCamera :
     def __init__(self, 
-                 cam = 1,
-                 redist = REDIST_PATH,
-                 data_dir = DATA_DIR,
-                 thread_progress=True,
-                 height=200):
+                cam = 1,
+                robot=None,
+                redist = REDIST_PATH,
+                data_dir = DATA_DIR,
+                thread_progress=True,
+                bracket_theta=30,
+                height=200,
+                yolo=True,
+                temporal_filter=False,
+                colormap=False,
+                save_data = False):
         
         self.cam = cam
+        self.robot = robot
         self.redist = redist
         self.data_dir = data_dir
         self.device = device
         self.focal_length = 60
         self.height = height
+        self.bracket_theta = bracket_theta
+        self.width = 640
+        self.height = 480
+        self.fps = 30
+        self.yolo = yolo
+        self.temporal_filter = temporal_filter
+        self.colormap = colormap
+        self.save_data = save_data
         
         self.thread_progress = thread_progress
         if self.thread_progress:
@@ -37,29 +52,7 @@ class DepthCamera :
             self.depth=True
             self.depth_data=True
         
-        # self.depth = False
-        
-        self.data = CameraData()
-    
-    def config(self, 
-                yolo=True,
-                temporal_filter=False,
-                colormap=False,
-                save_data = False):
-        
-        self.width = 640
-        self.height = 480
-        self.fps = 30
-        
-        if self._check_params(
-            yolo,
-            temporal_filter,
-            colormap,
-            save_data) :
-            return 
-        
-        ##---------------------------------------------------------------------------------------------------------
-        # YOLO MODEL INITIALISATION
+        self.data = CameraData(bracket_theta = self.bracket_theta)
         
         self.model, self.gripper_model, self.barcode_model = self._model()
         
@@ -75,8 +68,9 @@ class DepthCamera :
         ##---------------------------------------------------------------------------------------------------------
         # COLOR STREAM INITIALITATION
         self.color_stream = ColorStream(cam=self.cam)
-        
-    def run(self, verbose=False):
+    
+    def run(self, 
+            verbose=False):
         
         if self.thread_progress:
             self.thread.start()
@@ -85,25 +79,21 @@ class DepthCamera :
             
         self.close()
         
-    ##-----------------------------------------------------------------------------------------------
-    ## Add Extra Functions
     
     def close(self):
-        # print(f'Result : {self.data.get_data()}')
 
         if self.depth:
             self.depth_stream.close()
         self.color_stream.close()
     
-    def loop(self, show=True, verbose=False):
+    def loop(self, show=True, verbose=False, robot=None):
         if self.save_data:
             self.data.setup()
         
         while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
             
-            # if self.cur_data['gripper_loc']:
-            #     print(self.data.cur_process())
+            # print(self.data.cur_process())
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -150,6 +140,12 @@ class DepthCamera :
 
         if verbose:
             print(self.cur_data)
+        
+        
+        if self.robot is not None:
+            x, y, z = self.data.cur_process()['min']['item_location']
+            print(x, y, z)
+            # robot.inverse_kinematics(x, y, z)
 
         self.data.append(self.cur_data, save=self.save_data)
         
@@ -176,29 +172,31 @@ class DepthCamera :
 
         return model, gripper_model, barcode_model
 
-    def _check_params( self,
-            yolo,
-            temporal_filter,
-            colormap,
-            save_data):
+    # def _check_params( self,
+    #         yolo,
+    #         temporal_filter,
+    #         colormap,
+    #         save_data):
         
-        # for args in [depth, color, yolo, colormap, temporal_filter, save_data]:
-        #     if isinstance(args, bool) == False:
-        #         print(f'(depth, color, yolo, colormap, temporal_filter, save_data) parameter only accept boolean datatype')
-        #         return True
-        # for args in [width, height, fps]:
-        #     if isinstance(args, int) == False:
-        #         print(f'(width, height, fps) parameter only accept int datatype')
-        #         return True
+    #     # for args in [depth, color, yolo, colormap, temporal_filter, save_data]:
+    #     #     if isinstance(args, bool) == False:
+    #     #         print(f'(depth, color, yolo, colormap, temporal_filter, save_data) parameter only accept boolean datatype')
+    #     #         return True
+    #     # for args in [width, height, fps]:
+    #     #     if isinstance(args, int) == False:
+    #     #         print(f'(width, height, fps) parameter only accept int datatype')
+    #     #         return True
             
-        self.yolo = yolo
-        self.temporal_filter = temporal_filter
-        self.colormap = colormap
-        self.save_data = save_data
-        return False
+    #     self.yolo = yolo
+    #     self.temporal_filter = temporal_filter
+    #     self.colormap = colormap
+    #     self.save_data = save_data
+    #     return False
 
                         
 if __name__ == '__main__':
-    cam = DepthCamera(cam=0,)
-    cam.config()
-    cam.run(verbose=False)
+    
+    cam = DepthCamera(cam=0,
+                      robot=1)
+    # cam.config()
+    cam.run(verbose=True)
