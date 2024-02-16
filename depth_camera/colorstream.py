@@ -62,9 +62,9 @@ class ColorStream:
                 self.model = model
                 color_image = self._yolo(color_image_raw, img_depth)
             
-            if gripper_model is not None:
-                self.gripper_model = gripper_model
-                color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
+            # if gripper_model is not None:
+            #     self.gripper_model = gripper_model
+            #     color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
             
             if self.barcode_auth is not None:
                 self.barcode_model = barcode_model
@@ -159,5 +159,13 @@ class ColorStream:
         
         self.data['barcode_loc'] = {'corners':corners,
                                     'location':location}
+        
+        
+        self.data['gripper_loc'] = {'bbox':[300, 220, 340, 260],
+                                    'location':(240, 320, depth_estimation)}
+        
+        size = 50
+        
+        img = _add_square(img, [320 - size, 240 - size, 320 + size, 240 + size], (320, 240), (320 ,240, depth_estimation), 'GRIPPER')
         
         return img
