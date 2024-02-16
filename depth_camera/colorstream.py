@@ -110,7 +110,7 @@ class ColorStream:
         annotator.box_label(bbox, class_name)
         img = _add_border(img, border)
         
-        mask_segment = mask.data.to(device).numpy()
+        mask_segment = mask.data.cpu().numpy()
         mask_segment.shape = (480, 640)
 
         # img = self._add_distance_estimation(img, mask, img_depth, bbox)
