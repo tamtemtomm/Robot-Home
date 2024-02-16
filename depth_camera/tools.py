@@ -142,9 +142,9 @@ class DepthCamera :
         if self.robot is not None:
             x, y, z = self.data.cur_process()['min']['item_location']
             print(x, y, z)
-            # robot.inverse_kinematics(x, y, z)
+            self.robot.inverse_kinematics(x, y, z)
         
-        print(self.data.cur_process())
+        # print(self.data.cur_process())
 
         self.data.append(self.cur_data, save=self.save_data)
         

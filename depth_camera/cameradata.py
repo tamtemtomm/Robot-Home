@@ -83,7 +83,7 @@ class CameraData:
         min_target = None
         result = {
             'grip_location'     : None,
-            'item_location'     : None,
+            'item_location'     : [0, 0, 0],
             'distance'          : None,
             'target'            : None,
         }
