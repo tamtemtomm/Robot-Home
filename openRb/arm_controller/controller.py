@@ -32,6 +32,8 @@ class ARM_ROBOT:
             return None
         
     def inverse_kinematics(self, x=0, y=0, z=0):
+        z = 100 if z <=100 else 230 if z >=230 else z
+
         theta1 = None
         theta2 = None
 
@@ -44,17 +46,15 @@ class ARM_ROBOT:
         theta1 =  math.atan2(y,x)
         ai = a-a2
         
-        theta2 = (math.pow(z,2) + math.pow(ai,2) + math.pow(a1,2)) / (2*z*a1)
-
+        theta2 = (math.pow(z,2) + math.pow(ai,2) - math.pow(a1,2)) / (2*z*a1)
+        theta2 = math.acos(theta2)
         theta1 *= (180/math.pi)
         theta2 *= (180/math.pi)
 
         theta1 = 360+theta1 if theta1<0 else theta1
         theta2 = 360+theta2 if theta2<0 else theta2
-        theta2 = 280-theta2
-        theta2 = theta2 if theta2 >=181 else 181
 
-        return [theta1, theta2]
+        return [theta1, 90-theta2]
     
     def close(self):
         self.ser.close()
