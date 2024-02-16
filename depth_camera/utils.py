@@ -57,6 +57,15 @@ def _add_line(img, point1, point2):
     point1, point2 = int(point1), int(point2)
     return cv2.line(img, point1, point2, DEFAULT_COLOR, 1)
 
+def _add_polylines(img, points, text=None):
+    img = cv2.polylines(img, np.array(points, dtype=np.int32), 1, DEFAULT_COLOR)
+        
+    if text is not None:
+        x, y = int(np.array(points)[0][0][0][0]), int(np.array(points)[0][0][0][1])
+        img = cv2.putText(img, f'{text}', (x, y), DEFAULT_FONT, 0.4, (0, 0, 255), 1, DEFAULT_LINE)
+    
+    return img
+
 def _euclidian_distance(arr_a, arr_b):
     sum = 0
     for a , b in zip(arr_a, arr_b):

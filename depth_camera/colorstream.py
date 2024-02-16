@@ -1,5 +1,5 @@
 from depth_camera.config import *
-from depth_camera.utils import _temporal_filter, _add_border, _add_square
+from depth_camera.utils import _temporal_filter, _add_border, _add_square, _add_polylines
 
 import cv2
 import numpy as np
@@ -15,7 +15,12 @@ class ColorStream:
                  ):
         
         self.cap = cv2.VideoCapture(cam)
-        self.barcode_auth = 'hahahaha' if barcode else None 
+        
+        if barcode : 
+            self.barcode_auth = 'hahahaha' if barcode else None 
+            barcode_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_50)
+            barcode_params = cv2.aruco.DetectorParameters()
+            self.detector = cv2.aruco.ArucoDetector(barcode_dict, barcode_params)
         
         # try : 
         #     self.CLIENT = InferenceHTTPClient(
@@ -97,16 +102,6 @@ class ColorStream:
                         img = self._annotate_gripper_segment(img, box, img_depth)
         return img
     
-    def _yolo_barcode(self, img, img_raw, img_depth):
-        results = self.gripper_model.predict(img_raw, verbose=False)
-        if results:
-            for r in results:
-                print(r.boxes)
-                if r.boxes:
-                    for box in r.boxes:
-                        img = self._annotate_barcode_segment2(img, box, img_depth)
-        return img
-    
     def _annotate_segment(self, img, box, mask, annotator, img_depth) : 
         bbox = box.xyxy[0]
         class_name = self.model.names[int(box.cls)]
@@ -143,49 +138,26 @@ class ColorStream:
         bbox = box.xyxy[0]
         bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
         center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
-        depth_estimation = None
+        depth_estimation = 100
         
         location = (center[0], center[1], depth_estimation)
         img = _add_square(img, bbox, center, location, 'GRIPPER')
         self.data['gripper_loc'] = {'bbox':bbox,
                                     'location':location}
         return img
-
-    def _annotate_barcode_segment(self, img, img_raw, img_depth=None):
-        depth_estimation = None
     
-        for barcode in pyzbar.decode(img_raw):
-            if barcode :
-                barcode_data = barcode.data.decode('utf-8')
-                if barcode_data is not None:
-                    x1, y1, w, h  = barcode.rect
-                    x2, y2 = x1 + w, y1 + h
-                    
-                    box = (x1, y1, x2, y2)
-                    bbox = [int(box[0]), int(box[1]), int(box[2]), int(box[3])]
-                    center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
-                    location = (center[0], center[1], depth_estimation)
-                    
-                    img = _add_square(img, box, center, location, 'BARCODE')
-                    
-                    self.data['barcode_loc'] = {'bbox':bbox,
-                                                'location':location,
-                                                'data': barcode_data}
-                    
-                    break
-                else :
-                    continue
+    def _annotate_barcode_segment(self, img, img_raw, img_depth):
+        location = None
+        depth_estimation = 100
+        (corners, ids, rejected) = self.detector.detectMarkers(img_raw)
         
-        return img
-    
-    def _annotate_barcode_segment2(self, img, box, img_depth=None):
-        bbox = box.xyxy[0]
-        bbox = [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
-        center = (int(bbox[0] + (bbox[2] - bbox[0])/2), int(bbox[1] + (bbox[3] - bbox[1])/2))
-        depth_estimation = None
+        if corners:
+            img = _add_polylines(img, corners, 'ARUCO')
+            # print(np.array(corners).shape)
+            x, y = np.mean(np.array(corners)[0, 0, :, 0]), np.mean(np.array(corners)[0, 0, :, 1])
+            location = (x, y, depth_estimation)
         
-        location = (center[0], center[1], depth_estimation)
-        img = _add_square(img, bbox, center, location, 'BARCODE')
-        self.data['barcode_loc'] = {'bbox':bbox,
+        self.data['barcode_loc'] = {'corners':corners,
                                     'location':location}
+        
         return img

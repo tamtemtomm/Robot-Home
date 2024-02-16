@@ -93,8 +93,6 @@ class DepthCamera :
         while True :
             self.depth_image, self.img_depth, self.color_image = self.get_frame(show=show, verbose=verbose)
             
-            # print(self.data.cur_process())
-            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         
@@ -141,11 +139,12 @@ class DepthCamera :
         if verbose:
             print(self.cur_data)
         
-        
         if self.robot is not None:
             x, y, z = self.data.cur_process()['min']['item_location']
             print(x, y, z)
             # robot.inverse_kinematics(x, y, z)
+        
+        print(self.data.cur_process())
 
         self.data.append(self.cur_data, save=self.save_data)
         

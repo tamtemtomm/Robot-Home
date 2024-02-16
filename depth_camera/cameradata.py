@@ -73,7 +73,7 @@ class CameraData:
     def cur_process(self):
         self.results = {
             'min'           : self.get_min_distance(),
-            'orientation'   : self.get_barcode_orientation(),
+            # 'orientation'   : self.get_barcode_orientation(),
         }
         return self.results
     
