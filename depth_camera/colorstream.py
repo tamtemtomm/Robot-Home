@@ -37,7 +37,8 @@ class ColorStream:
                   gripper_model=None,
                   barcode_model=None,
                   temporal_filter=False,
-                  data = None
+                  data = None,
+                  gripper_loc=None,
                 ):
         
         if data :
@@ -64,11 +65,14 @@ class ColorStream:
             
             # if gripper_model is not None:
             #     self.gripper_model = gripper_model
-            #     color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)    
+            #     color_image = self._yolo_gripper(color_image, color_image_raw, img_depth)   
             
-            if self.barcode_auth is not None:
-                self.barcode_model = barcode_model
-                color_image = self._annotate_barcode_segment(color_image, color_image_raw, img_depth)
+            if gripper_loc is not None:
+                color_image = self._annotate_gripper_segment2(color_image_raw, gripper_loc)
+            
+            # if self.barcode_auth is not None:
+            #     self.barcode_model = barcode_model
+            #     color_image = self._annotate_barcode_segment(color_image_raw, color_image_raw, img_depth)
             
             if data : 
                 self.data['color']['annot'] = color_image
@@ -146,6 +150,17 @@ class ColorStream:
                                     'location':location}
         return img
     
+    def _annotate_gripper_segment2(self, img, gripper_loc, depth_estimation=0):
+        x, y = int(gripper_loc[0]), int(gripper_loc[1])
+        size = int(gripper_loc[2])
+        x1, y1, x2, y2 = int(x - size), int(y - size), int(x + size), int(y + size)
+        self.data['gripper_loc'] = {'bbox':[x1, y1, x2, y2],
+                                    'location':(240, 320, depth_estimation)}
+     
+        img = _add_square(img, (x1, y1, x2, y2), (x, y), (x, y, size), 'GRIPPER') 
+        
+        return img
+
     def _annotate_barcode_segment(self, img, img_raw, img_depth):
         location = None
         depth_estimation = 100
@@ -159,13 +174,5 @@ class ColorStream:
         
         self.data['barcode_loc'] = {'corners':corners,
                                     'location':location}
-        
-        
-        self.data['gripper_loc'] = {'bbox':[300, 220, 340, 260],
-                                    'location':(240, 320, depth_estimation)}
-        
-        size = 50
-        
-        img = _add_square(img, [320 - size, 240 - size, 320 + size, 240 + size], (320, 240), (320 ,240, depth_estimation), 'GRIPPER')
         
         return img

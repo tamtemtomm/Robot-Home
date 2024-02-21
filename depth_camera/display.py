@@ -25,17 +25,25 @@ class Frame(ctk.CTkFrame):
         self.img_label.configure(image=img)
         self.img = img
 
-class Button(ctk.CTkButton):
-    def init(self, container,  **kwargs):
-        ctk.CTkButton.init(self, container, **kwargs)
-        self._config()
+# class Button(ctk.CTkButton):
+#     def __init__(self, container, **kwargs):
+#         ctk.CTkButton.__init__(self, container, **kwargs)
+#         self._config()
         
-    def _config(self, text):
-        self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
+#     def _config(self, text):
+#         self.out = ctk.CTkLabel(self, text=text, font= ("sans-serif", 15))
 
 class CheckBox(ctk.CTkCheckBox):
-    def init(self, container, **kwargs):
-        ctk.CTkCheckBox.init(self, container, **kwargs)
+    def __init__(self, container, **kwargs):
+        ctk.CTkCheckBox.__init__(self, container, **kwargs)
+        self._config()
+    
+    def _config(self):
+        pass
+
+class Slider(ctk.CTkSlider):
+    def __init__(self, container, **kwargs):
+        ctk.CTkSlider.__init__(self, container, **kwargs)
         self._config()
     
     def _config(self):
@@ -91,6 +99,7 @@ class App():
         self.__add_temporal_filter_cb()
         self.__add_yolo_cb()
         self.__add_colormap_cb()
+        self.__add_gripper_slider()
         
     def __add_color_frame(self):
         self.color_frame_display = Frame(self.window, 'Color Frame')
@@ -121,15 +130,31 @@ class App():
                             onvalue='on', offvalue='off', text='ColorMap')
         yolo_cb.place(x=350, y=7)
     
-    def __cb_command(self, arg):
-        if arg == 'temporal':
-            pass
-        if arg == 'yolo':
-            # if self.yolo_var == 'on':
-            #     self.camera.yolo = True
-            # else : self.camera.yolo = False
+    def __add_gripper_slider(self):
+        self.gripper_slider_horizontal = Slider(self.window, from_=0, to=640)
+        self.gripper_slider_horizontal.place(x=10, y=600)
+        horizontal_label = ctk.CTkLabel(self.window, text='Gripper Horizontal', font=("Arial", 16) )
+        horizontal_label.place(x=35, y=565)
+        
+        self.gripper_slider_vertical = Slider(self.window, from_=0, to=480)
+        self.gripper_slider_vertical.place(x=230, y=600)
+        vertical_label = ctk.CTkLabel(self.window, text='Gripper Vertical', font=("Arial", 16) )
+        vertical_label.place(x=270, y=565)
+        
+        self.gripper_slider_size = Slider(self.window, from_=0, to=100)
+        self.gripper_slider_size.place(x=450, y=600)
+        vertical_label = ctk.CTkLabel(self.window, text='Gripper Size', font=("Arial", 16) )
+        vertical_label.place(x=500, y=565)
+    
+    # def __cb_command(self, arg):
+    #     if arg == 'temporal':
+    #         pass
+    #     if arg == 'yolo':
+    #         # if self.yolo_var == 'on':
+    #         #     self.camera.yolo = True
+    #         # else : self.camera.yolo = False
             
-            pass
+    #         pass
             
     def run(self, verbose=False):
         self.isrun = True
@@ -143,7 +168,9 @@ class App():
         self.close()
     
     def loop(self, verbose=False):
-        depth_img, _, color_img = self.camera.get_frame(show=False, verbose=verbose)
+        
+        gripper_loc = self.gripper_slider_horizontal.get(), self.gripper_slider_vertical.get(), self.gripper_slider_size.get()
+        depth_img, _, color_img = self.camera.get_frame(show=False, verbose=verbose, gripper_loc=gripper_loc)
         
         color_img =  _convert_to_pil(color_img, self.config_size['im_size'][0], 
                                      self.config_size['im_size'][1])
