@@ -5,10 +5,10 @@ from openRb.arm_controller.controller import ARM_ROBOT
 
 if __name__ == '__main__':
     
-    robot = ARM_ROBOT()
+    robot = ARM_ROBOT(com_port="COM7")
     
     cam = DepthCamera(
-        cam=0,
+        cam=3,
         bracket_theta=30)
     
     app = App(cam, robot=robot)
