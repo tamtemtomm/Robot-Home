@@ -102,7 +102,8 @@ class DepthCamera :
     
     def get_frame(self, 
                   show=False, 
-                  verbose=False):
+                  verbose=False,
+                  gripper_loc=None,):
         ##----------------------------------------------------------------------------------------------------
         # GET DEPTH FRAME 
         
@@ -131,7 +132,8 @@ class DepthCamera :
                                                             gripper_model=self.gripper_model if self.gripper_model else None,
                                                             barcode_model=self.barcode_model,
                                                             temporal_filter=self.temporal_filter,
-                                                            data = self.cur_data)
+                                                            data = self.cur_data,
+                                                            gripper_loc = gripper_loc)
         if self.color_image is not None:
             if show: 
                 cv2.imshow("Color Image", self.color_image)
