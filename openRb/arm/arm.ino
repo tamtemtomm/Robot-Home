@@ -1,8 +1,11 @@
 #include <DynamixelShield.h>
 #include <Wire.h>
-// #include <avr/dtostrf.h>
 #include <Math.h>
 #include <StringSplitter.h>
+
+#ifdef ARDUINO_OpenRB
+  #include <avr/dtostrf.h>
+#endif
 
 #define delay_I2C                 10
 #define NORMALIZATION_COUNT       16 //amount of data for normalization
@@ -132,20 +135,21 @@ void loop() {
   }
 
 
+  // This line is for test purposes
   // for(int i=0; i<254; i++){
-    if(loope = 0){
-      dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, 1, 0);
-      dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, 1, 50);
-    }
-    // servo_degree(180,1);
-    servo_degree(UPPER_LIM[0],DXL_ID2);
-    delay(2000);
-    // servo_degree(0, 1);
-    servo_degree(UPPER_LIM[1],DXL_ID2);
-    delay(2000);
-  // }
+  //   if(loope = 0){
+  //     dxl.writeControlTableItem(ControlTableItem::PROFILE_ACCELERATION, 1, 0);
+  //     dxl.writeControlTableItem(ControlTableItem::PROFILE_VELOCITY, 1, 50);
+  //   }
+  //   // servo_degree(180,1);
+  //   servo_degree(UPPER_LIM[0],DXL_ID2);
+  //   delay(2000);
+  //   // servo_degree(0, 1);
+  //   servo_degree(UPPER_LIM[1],DXL_ID2);
+  //   delay(2000);
+  // // }
 
-  loope++;
+  // loope++;
 
   
 }
