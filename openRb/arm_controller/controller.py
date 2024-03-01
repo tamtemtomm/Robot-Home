@@ -44,6 +44,7 @@ class ARM_ROBOT:
         a = math.sqrt(a)
 
         theta1 =  math.atan2(y,x)
+        print(a)
         ai = a-a2
         
         theta2 = (math.pow(z,2) + math.pow(ai,2) - math.pow(a1,2)) / (2*z*a1)
